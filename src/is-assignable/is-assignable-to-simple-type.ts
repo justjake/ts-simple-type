@@ -1038,7 +1038,7 @@ function logDebugHeader(typeA: SimpleType, typeB: SimpleType, options: IsAssigna
 	try {
 		result = isAssignableToSimpleType(typeA, typeB, silentConfig);
 	} catch (e) {
-		result = e.message;
+		result = (e as Error).message;
 	}
 	const depthChars = "   ".repeat(options.depth);
 

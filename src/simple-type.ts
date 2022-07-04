@@ -207,8 +207,8 @@ export interface SimpleTypeFunctionParameter {
 }
 
 export interface SimpleTypeTypePredicate {
-	readonly paramaterName: string;
-	readonly paramaterIndex: number;
+	readonly parameterName: string;
+	readonly parameterIndex: number;
 	readonly type: SimpleType;
 }
 

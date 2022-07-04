@@ -614,8 +614,8 @@ function getSimpleFunctionFromSignatureDeclaration(
 
 	const typeParameters = getTypeParameters(signatureDeclaration, options);
 
-	const tsTypePredicate = checker.getTypePredicateOfSignature(signature);
-	const typePredicateType = tsTypePredicate && toSimpleTypeCached(tsTypePredicate.type, options);
+	const tsTypePredicate = signature && checker.getTypePredicateOfSignature(signature);
+	const typePredicateType = tsTypePredicate?.type && tsTypePredicate && toSimpleTypeCached(tsTypePredicate.type, options);
 	const typePredicate = typePredicateType && {
 		parameterName: tsTypePredicate.parameterName,
 		parameterIndex: tsTypePredicate.parameterIndex,

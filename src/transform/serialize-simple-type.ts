@@ -41,7 +41,7 @@ export function deserializeSimpleType(serializedSimpleType: SerializedSimpleType
 		});
 
 		// Merge the content of "deserialized type" into the reference
-		Object.assign(deserializedTypeMap.get(Number(typeId)), deserializedType);
+		Object.assign(deserializedTypeMap.get(Number(typeId))!, deserializedType);
 	}
 
 	// Return the main deserialized type

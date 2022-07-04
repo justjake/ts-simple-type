@@ -7,28 +7,35 @@ jobs:
         name: Run
 
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                node: ["12.x", "16.x"]
+                typescript: ["4.5.5", "4.7.4"]
 
         steps:
             - name: Checkout code
               uses: actions/checkout@master
 
-            - name: Set Node.js 10.x
+            - name: Set Node.js 12.x
               uses: actions/setup-node@master
               with:
-                  node-version: 10.x
+                  node-version: "${{ matrix.node }}"
 
             - name: Cache
               uses: actions/cache@preview
               id: cache
               with:
                   path: node_modules
-                  key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+                  key: ${{ runner.os }}-node${{ matrix.node }}-ts${{ matrix.typescript}}-${{ hashFiles('**/package-lock.json') }}
                   restore-keys: |
-                      ${{ runner.os }}-node-
+                      ${{ runner.os }}-node${{ matrix.node }}-ts${{ matrix.typescript }}
 
             - name: Install
               if: steps.cache.outputs.cache-hit != 'true'
               run: npm ci
+
+            - name: Typescript
+              run: npm install typescript@${{ matrix.typescript }}
 
             - name: Lint
               run: npm run lint

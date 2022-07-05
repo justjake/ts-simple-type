@@ -277,6 +277,10 @@ export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, t
 	return maxType;
 }
 
+export function symbolIsOptional(sym: Symbol, ts: typeof tsModule): boolean {
+	return (sym.flags & ts.SymbolFlags.Optional) !== 0;
+}
+
 /** Expose internal-only functions from ts.TypeChecker */
 interface TypeCheckerInternal extends ts.TypeChecker {
 	getTypeOfPropertyOfType(type: ts.Type, propertyName: string): ts.Type | undefined;

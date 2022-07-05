@@ -168,8 +168,8 @@ export interface SimpleTypeIntersection extends SimpleTypeBase {
 // ##############################
 
 export interface SimpleTypeMember {
-	readonly optional: boolean;
 	readonly type: SimpleType;
+	readonly optional?: boolean;
 	readonly modifiers?: SimpleTypeModifierKind[];
 }
 
@@ -251,7 +251,6 @@ export interface SimpleTypeMethod extends SimpleTypeBase {
  */
 export interface SimpleTypeGenericArguments extends SimpleTypeBase {
 	readonly kind: "GENERIC_ARGUMENTS"; // TODO: rename
-	readonly name?: undefined;
 	/** The generic type being instantiated */
 	readonly target: Extract<SimpleType, { typeParameters?: unknown }>;
 	/** The arguments passed to the generic */

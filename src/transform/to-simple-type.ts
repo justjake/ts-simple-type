@@ -55,13 +55,17 @@ import {
 	isUndefined,
 	isUniqueESSymbol,
 	isUnknown,
-	isVoid
+	isVoid,
+	symbolIsOptional
 } from "../utils/ts-util";
 
 export interface ToSimpleTypeOptions {
 	eager?: boolean;
 	cache?: WeakMap<Type, SimpleType>;
+	/** Add methods like .getType(), .getTypeChecker() to each simple type */
 	addMethods?: boolean;
+	/** Add { kind: "ALIAS" } wrapper types around simple aliases. Otherwise, remove these wrappers. */
+	preserveSimpleAliases?: boolean;
 }
 
 interface ToSimpleTypeInternalOptions {
@@ -70,6 +74,7 @@ interface ToSimpleTypeInternalOptions {
 	ts: typeof tsModule;
 	eager?: boolean;
 	addMethods?: boolean;
+	preserveSimpleAliases?: boolean;
 }
 
 /**
@@ -99,6 +104,7 @@ export function toSimpleType(type: Type | Node | SimpleType, checker?: TypeCheck
 		eager: options.eager,
 		cache: options.cache || DEFAULT_TYPE_CACHE,
 		addMethods: options.addMethods,
+		preserveSimpleAliases: options.preserveSimpleAliases,
 		ts: getTypescriptModule()
 	});
 }
@@ -201,6 +207,30 @@ function toSimpleTypeCached(type: Type, options: ToSimpleTypeInternalOptions): S
  */
 function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
 	const enhance = (instantiated: SimpleType) => withMethods(instantiated, type, options);
+	const wrapIfAlias = (instantiated: SimpleType): SimpleType => {
+		if (isAlias(type, options.ts)) {
+			const aliasName = type.aliasSymbol!.getName() || "";
+			const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
+			const typeParameters = getTypeParameters(aliasDeclaration, options);
+
+			if (!options.preserveSimpleAliases && !typeParameters?.length) {
+				return {
+					...instantiated,
+					name: aliasName || instantiated.name
+				} as SimpleType;
+			}
+
+			return {
+				kind: "ALIAS",
+				name: aliasName,
+				target: instantiated,
+				typeParameters
+			};
+		} else {
+			return instantiated;
+		}
+	};
+
 	// Check if the type is a generic interface/class reference and lift it.
 	// TODO: we need to track down instantiated types that were instantiated with a "mapper".
 	//       currently, don't know how to squeeze the type arguments out of those...
@@ -231,45 +261,20 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 						typeArguments
 					};
 
-					if (isAlias(type, options.ts)) {
-						const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
-						const typeParameters = getTypeParameters(aliasDeclaration, options);
-
-						return enhance({
-							kind: "ALIAS",
-							name: type.aliasSymbol!.getName() || "",
-							target: generic,
-							typeParameters
-						});
-					} else {
-						return enhance(generic);
-					}
+					return enhance(wrapIfAlias(generic));
 				}
 			};
 		}
 	}
 
 	if (isAlias(type, options.ts)) {
-		const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
-		const typeParameters = getTypeParameters(aliasDeclaration, options);
-		// TODO: are we creating too many alias wrapper types?
-		//       There's not much point....?
-		//       Maybe we should just use the underlying type unless there's parameters or JSDoc here?
-		//       And we can always try type.aliasSymbol.getName() before type.getSymbol().getName
-		// if (typeParameters) {
 		return {
 			// TODO: better type safety
 			instantiated: (type as any).target || type,
 			generic: instantiated => {
-				return enhance({
-					kind: "ALIAS",
-					name: type.aliasSymbol!.getName() || "",
-					target: instantiated,
-					typeParameters
-				});
+				return enhance(wrapIfAlias(instantiated));
 			}
 		};
-		// }
 	}
 
 	return undefined;
@@ -443,7 +448,6 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 				.getPropertiesOfType(type)
 				.map(symbol => {
 					const declaration = getDeclaration(symbol, ts);
-
 					// Some instance properties may have an undefined declaration.
 					// Since we can't do too much without a declaration, filtering
 					// these out seems like the best strategy for the moment.
@@ -452,12 +456,18 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 					// more info.
 					if (declaration == null) return null;
 
-					return {
+					const result: Writable<SimpleTypeMemberNamed> = {
 						name: symbol.name,
-						optional: (symbol.flags & ts.SymbolFlags.Optional) !== 0,
-						modifiers: getModifiersFromDeclaration(declaration, ts),
 						type: toSimpleTypeCached(checker.getTypeAtLocation(declaration), options)
-					} as SimpleTypeMemberNamed;
+					};
+					if (symbolIsOptional(symbol, ts)) {
+						result.optional = true;
+					}
+					const modifiers = getModifiersFromDeclaration(declaration, ts);
+					if (modifiers.length > 0) {
+						result.modifiers = modifiers;
+					}
+					return result;
 				})
 				.filter((member): member is NonNullable<typeof member> => member != null);
 
@@ -485,13 +495,21 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 
 		const members = type.getProperties().map(symbol => {
 			const declaration = getDeclaration(symbol, ts);
-
-			return {
+			const result: Writable<SimpleTypeMemberNamed> = {
 				name: symbol.name,
-				optional: (symbol.flags & ts.SymbolFlags.Optional) !== 0,
-				modifiers: declaration != null ? getModifiersFromDeclaration(declaration, ts) : [],
 				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker, ts), options)
 			};
+
+			if (symbolIsOptional(symbol, ts)) {
+				result.optional = true;
+			}
+
+			const modifiers = declaration != null ? getModifiersFromDeclaration(declaration, ts) : [];
+			if (modifiers.length) {
+				result.modifiers = modifiers;
+			}
+
+			return result;
 		});
 
 		const ctor = getSimpleFunctionFromCallSignatures(type.getConstructSignatures(), options) as SimpleTypeFunction;
@@ -741,3 +759,7 @@ export function debugTypeFlags(type: Type) {
 		objectFlags
 	};
 }
+
+type Writable<T> = {
+	-readonly [K in keyof T]: T[K];
+};

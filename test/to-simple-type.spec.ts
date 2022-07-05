@@ -2,7 +2,7 @@ import test from "ava";
 import { __String } from "typescript";
 import ts = require("typescript");
 import { inspect } from "util";
-import { getTypescriptModule, SimpleTypeAlias, SimpleTypeInterface, SimpleTypeObject, toSimpleType } from "../src";
+import { getTypescriptModule, SimpleTypeAlias, SimpleTypeInterface, SimpleTypeObject, SimpleTypeUnion, toSimpleType } from "../src";
 import { isType } from "../src/utils/ts-util";
 import { ITestFile, programWithVirtualFiles } from "./helpers/analyze-text";
 
@@ -46,6 +46,80 @@ export type ContentPointer = RecordPointer<'block' | 'collection'>
 // 	ctx.is(simpleType.getSymbol?.(), types.SimpleAliasExample.getSymbol());
 // });
 
+test("basic type alias handling", ctx => {
+	const { types, typeChecker } = getTestTypes(
+		["StringAlias", "ObjectAlias", "UnionAlias", "IntersectionAlias"],
+		`
+export type StringAlias = string	
+export type ObjectAlias = {
+	tag: "object"
+	hello: true
+}
+export type UnionAlias = "first" | "second"
+export type IntersectionAlias = ObjectAlias & StringAlias
+	`
+	);
+
+	ctx.deepEqual(
+		{
+			kind: "STRING"
+		},
+		toSimpleType(types.StringAlias, typeChecker)
+	);
+
+	const objectAliasSimpleType: SimpleTypeObject = {
+		kind: "OBJECT",
+		name: "ObjectAlias",
+		members: [
+			{
+				name: "tag",
+				type: {
+					kind: "STRING_LITERAL",
+					value: "object"
+				}
+			},
+			{
+				name: "hello",
+				type: {
+					kind: "BOOLEAN_LITERAL",
+					value: true
+				}
+			}
+		]
+	};
+	ctx.deepEqual(objectAliasSimpleType, toSimpleType(types.ObjectAlias, typeChecker));
+
+	const unionAliasSimpleType: SimpleTypeUnion = {
+		kind: "UNION",
+		name: "UnionAlias",
+		types: [
+			{
+				kind: "STRING_LITERAL",
+				value: "first"
+			},
+			{
+				kind: "STRING_LITERAL",
+				value: "second"
+			}
+		]
+	};
+	ctx.deepEqual(unionAliasSimpleType, toSimpleType(types.UnionAlias, typeChecker));
+
+	ctx.deepEqual(
+		{
+			kind: "INTERSECTION",
+			name: "IntersectionAlias",
+			types: [
+				objectAliasSimpleType,
+				{
+					kind: "STRING"
+				}
+			]
+		},
+		toSimpleType(types.IntersectionAlias, typeChecker)
+	);
+});
+
 test("generic interface handling", ctx => {
 	const { types, typeChecker } = getTestTypes(["GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
 
@@ -61,8 +135,6 @@ test("generic interface handling", ctx => {
 		members: [
 			{
 				name: "hello",
-				optional: false,
-				modifiers: [],
 				type: {
 					kind: "GENERIC_PARAMETER",
 					name: "T"
@@ -70,13 +142,12 @@ test("generic interface handling", ctx => {
 			}
 		]
 	};
-	ctx.deepEqual(toSimpleType(types.GenericInterface, typeChecker), genericInterfaceSimpleType);
+	ctx.deepEqual(genericInterfaceSimpleType, toSimpleType(types.GenericInterface, typeChecker));
 
-	ctx.deepEqual(toSimpleType(types.GenericInterfaceExample, typeChecker), {
-		kind: "ALIAS",
-		name: "GenericInterfaceExample",
-		target: {
+	ctx.deepEqual(
+		{
 			kind: "GENERIC_ARGUMENTS",
+			name: "GenericInterfaceExample",
 			instantiated: {
 				kind: "OBJECT",
 				call: undefined,
@@ -87,8 +158,6 @@ test("generic interface handling", ctx => {
 				members: [
 					{
 						name: "hello",
-						optional: false,
-						modifiers: [],
 						type: {
 							kind: "NUMBER"
 						}
@@ -101,37 +170,32 @@ test("generic interface handling", ctx => {
 				}
 			],
 			target: genericInterfaceSimpleType
-		}
-	});
+		},
+		toSimpleType(types.GenericInterfaceExample, typeChecker)
+	);
 });
 
 test("generic type alias handling", ctx => {
 	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
-	const activityPointer = toSimpleType(types.ActivityPointer, typeChecker);
-	const instantiatedActivityPointer: SimpleTypeObject = {
+	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);
+	const expectedActivityPointerInstance: SimpleTypeObject = {
 		kind: "OBJECT",
 		members: [
 			{
-				modifiers: [],
 				name: "table",
-				optional: false,
 				type: {
 					kind: "STRING_LITERAL",
 					value: "activity"
 				}
 			},
 			{
-				modifiers: [],
 				name: "id",
-				optional: false,
 				type: {
 					kind: "STRING"
 				}
 			},
 			{
-				modifiers: [],
 				name: "spaceId",
-				optional: false,
 				type: {
 					kind: "STRING"
 				}
@@ -140,7 +204,7 @@ test("generic type alias handling", ctx => {
 	};
 
 	const tableType = toSimpleType(types.Table, typeChecker);
-	const recordPointerDefinition: SimpleTypeAlias = {
+	const recordPointerExpected: SimpleTypeAlias = {
 		kind: "ALIAS",
 		name: "RecordPointer",
 		target: {
@@ -158,16 +222,16 @@ test("generic type alias handling", ctx => {
 		]
 	};
 
-	ctx.deepEqual(activityPointer, instantiatedActivityPointer);
+	ctx.deepEqual(expectedActivityPointerInstance, activityPointerSimpleType);
 	// XXX: We actually want to understand this as an ALIAS to a GENERIC_ARGUMENTS,
 	// but we can't currently detect that, so we pass through the instantiated
 	// type with no generic information.
-	// ctx.deepEqual(activityPointer, {
+	// ctx.deepEqual({
 	// 	kind: "ALIAS",
 	// 	name: "ActivityPointer",
 	// 	target: {
 	// 		kind: "GENERIC_ARGUMENTS",
-	// 		instantiated: instantiatedActivityPointer,
+	// 		instantiated: expectedActivityPointerInstance,
 	// 		target: recordPointerDefinition,
 	// 		typeArguments: [
 	// 			{
@@ -175,10 +239,11 @@ test("generic type alias handling", ctx => {
 	// 				value: "activity"
 	// 			}
 	// 		]
-	// 	}
+	// 	},
+	//  activityPointerSimpleType,
 	// });
 
-	ctx.deepEqual(toSimpleType(types.RecordPointer, typeChecker), recordPointerDefinition);
+	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
 });
 
 function getTestTypes<TypeNames extends string>(
@@ -231,7 +296,7 @@ function log(input: unknown, d = 3) {
 	console.log(flags, str.replace(/checker: {[\s\S]*?}/g, ""));
 }
 
-export function debugTypeFlags(type: ts.Type) {
+function debugTypeFlags(type: ts.Type) {
 	const ts = getTypescriptModule();
 	const flags = type.flags;
 	const typeFlags: Record<string, boolean> = {};

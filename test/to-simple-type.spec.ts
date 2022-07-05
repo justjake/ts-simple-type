@@ -281,7 +281,7 @@ test("generic interface handling", ctx => {
 	);
 });
 
-test.only("generic type alias handling", ctx => {
+test("generic type alias handling", ctx => {
 	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
 	log(types.ActivityPointer);
 	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);

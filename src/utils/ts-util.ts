@@ -208,11 +208,16 @@ export function getTypeArguments(type: ObjectType, checker: TypeChecker, ts: typ
 	}
 
 	// https://stackoverflow.com/questions/66389805/how-to-extract-type-arguments-and-type-parameters-from-a-type-aliases-references
+	// This doesn't work in all cases.
+	// For example, sometimes the aliasNode isn't a TypeReferenceNode, and/or
+	// maybe we need to "climb" upwards from the node looking for a type reference?
+	// or something. This stuff is really confusing.
 	if (isInstantiated(type, ts) && (("mapper" in type) as any)) {
 		const symbol = type.aliasSymbol || type.getSymbol();
 		const node = type.node || (symbol && getDeclaration(symbol, ts));
 		const typeNode = node && (ts.isTypeNode(node) ? node : ts.isTypeAliasDeclaration(node) ? node.type : undefined);
-		console.log(checker.typeToString(type), "typeNode:", typeNode);
+		// const typeNode = checker.typeToTypeNode(type, undefined, undefined); // doesnt work
+		// console.log(checker.typeToString(type), "typeNode:", typeNode);
 		if (typeNode && ts.isTypeReferenceNode(typeNode)) {
 			const typeArguments = typeNode.typeArguments?.map(node => checker.getTypeAtLocation(node));
 			if (typeArguments) {

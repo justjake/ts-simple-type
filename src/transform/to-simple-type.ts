@@ -210,7 +210,7 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 	const wrapIfAlias = (instantiated: SimpleType, ignoreTypeParams?: boolean): SimpleType => {
 		if (isAlias(type, options.ts)) {
 			const aliasName = type.aliasSymbol!.getName() || "";
-			console.log("wrap if alias: was alias", aliasName);
+			// console.log("wrap if alias: was alias", aliasName);
 			// TODO: if we're an instantiation of an alias, we don't want the params.
 			// currently we always get params, leading to double-wrapping of a generic, when sometimes
 			// we should just be the instantiation of a generic.

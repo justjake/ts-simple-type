@@ -15,7 +15,7 @@ import {
 	TypeReference,
 	UniqueESSymbolType
 } from "typescript";
-import ts = require("typescript");
+import type * as ts from "typescript";
 import { SimpleTypeModifierKind } from "../simple-type";
 import { and, or } from "./list-util";
 

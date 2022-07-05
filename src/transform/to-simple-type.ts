@@ -207,13 +207,17 @@ function toSimpleTypeCached(type: Type, options: ToSimpleTypeInternalOptions): S
  */
 function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
 	const enhance = (instantiated: SimpleType) => withMethods(instantiated, type, options);
-	const wrapIfAlias = (instantiated: SimpleType): SimpleType => {
+	const wrapIfAlias = (instantiated: SimpleType, ignoreTypeParams?: boolean): SimpleType => {
 		if (isAlias(type, options.ts)) {
 			const aliasName = type.aliasSymbol!.getName() || "";
+			console.log("wrap if alias: was alias", aliasName);
+			// TODO: if we're an instantiation of an alias, we don't want the params.
+			// currently we always get params, leading to double-wrapping of a generic, when sometimes
+			// we should just be the instantiation of a generic.
 			const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
 			const typeParameters = getTypeParameters(aliasDeclaration, options);
 
-			if (!options.preserveSimpleAliases && !typeParameters?.length) {
+			if (!options.preserveSimpleAliases && (ignoreTypeParams || !typeParameters?.length)) {
 				return {
 					...instantiated,
 					name: aliasName || instantiated.name
@@ -236,7 +240,7 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 	//       currently, don't know how to squeeze the type arguments out of those...
 	//       will need to do more research, or find a hacky way.
 	if (isObject(type, options.ts) && (isObjectTypeReference(type, options.ts) || isInstantiated(type, options.ts)) /* TODO: figure this case out */) {
-		const typeArguments = options.checker.getTypeArguments(type);
+		const typeArguments = getTypeArguments(type, options.checker, options.ts);
 		if (typeArguments.length > 0) {
 			// Special case for array, tuple and promise, they are generic in themselves
 			if (isImplicitGeneric(type, options.checker, options.ts)) {
@@ -252,16 +256,18 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 			return {
 				instantiated: type,
 				generic: instantiated => {
-					const typeArguments = Array.from(options.checker.getTypeArguments(type) || []).map(t => toSimpleTypeCached(t, options));
+					const typeArgumentsSimpleType = typeArguments.map(t => toSimpleTypeCached(t, options));
 
 					const generic: SimpleTypeGenericArguments = {
 						kind: "GENERIC_ARGUMENTS",
 						target: toSimpleTypeCached(type.target, options) as any,
 						instantiated,
-						typeArguments
+						typeArguments: typeArgumentsSimpleType
 					};
 
-					return enhance(wrapIfAlias(generic));
+					// This makes current tests work, but may be actually incorrect.
+					//                                  vvvvvv
+					return enhance(wrapIfAlias(generic, true));
 				}
 			};
 		}
@@ -536,15 +542,26 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			return { ...call, name, typeParameters };
 		}*/
 
-		simpleType = {
+		const result: Writable<SimpleTypeInterface | SimpleTypeObject> = {
 			kind: type.isClassOrInterface() ? "INTERFACE" : "OBJECT",
-			typeParameters,
-			ctor,
-			members,
-			name,
-			indexType,
-			call
-		} as SimpleTypeInterface | SimpleTypeObject;
+			name
+		};
+		if (typeParameters) {
+			result.typeParameters = typeParameters;
+		}
+		if (ctor) {
+			result.ctor = ctor;
+		}
+		if (members) {
+			result.members = members;
+		}
+		if (indexType) {
+			result.indexType = indexType;
+		}
+		if (call) {
+			result.call = call;
+		}
+		simpleType = result;
 	}
 
 	// Handle "object" type

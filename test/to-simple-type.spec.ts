@@ -2,7 +2,7 @@ import test from "ava";
 import { __String } from "typescript";
 import ts = require("typescript");
 import { inspect } from "util";
-import { getTypescriptModule, SimpleTypeAlias, SimpleTypeInterface, SimpleTypeObject, SimpleTypeUnion, toSimpleType } from "../src";
+import { getTypescriptModule, SimpleTypeAlias, SimpleTypeGenericArguments, SimpleTypeInterface, SimpleTypeObject, SimpleTypeUnion, toSimpleType } from "../src";
 import { isType } from "../src/utils/ts-util";
 import { ITestFile, programWithVirtualFiles } from "./helpers/analyze-text";
 
@@ -35,16 +35,16 @@ export type ActivityPointer = RecordPointer<ActivityTable>
 export type ContentPointer = RecordPointer<'block' | 'collection'>
     `;
 
-// test("it adds methods when addMethods is set", ctx => {
-// 	const { types, typeChecker } = getTestTypes(["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
-// 	const simpleType = toSimpleType(types.SimpleAliasExample, typeChecker, {
-// 		addMethods: true
-// 	});
+test("it adds methods when addMethods is set", ctx => {
+	const { types, typeChecker } = getTestTypes(["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
+	const simpleType = toSimpleType(types.SimpleAliasExample, typeChecker, {
+		addMethods: true
+	});
 
-// 	ctx.is(simpleType.getType?.(), types.SimpleAliasExample);
-// 	ctx.is(simpleType.getTypeChecker?.(), typeChecker);
-// 	ctx.is(simpleType.getSymbol?.(), types.SimpleAliasExample.getSymbol());
-// });
+	ctx.is(simpleType.getType?.(), types.SimpleAliasExample);
+	ctx.is(simpleType.getTypeChecker?.(), typeChecker);
+	ctx.is(simpleType.getSymbol?.(), types.SimpleAliasExample.getSymbol());
+});
 
 test("basic type alias handling", ctx => {
 	const { types, typeChecker } = getTestTypes(
@@ -60,12 +60,9 @@ export type IntersectionAlias = ObjectAlias & StringAlias
 	`
 	);
 
-	ctx.deepEqual(
-		{
-			kind: "STRING"
-		},
-		toSimpleType(types.StringAlias, typeChecker)
-	);
+	ctx.deepEqual(toSimpleType(types.StringAlias, typeChecker), {
+		kind: "STRING"
+	});
 
 	const objectAliasSimpleType: SimpleTypeObject = {
 		kind: "OBJECT",
@@ -87,7 +84,7 @@ export type IntersectionAlias = ObjectAlias & StringAlias
 			}
 		]
 	};
-	ctx.deepEqual(objectAliasSimpleType, toSimpleType(types.ObjectAlias, typeChecker));
+	ctx.deepEqual(toSimpleType(types.ObjectAlias, typeChecker), objectAliasSimpleType);
 
 	const unionAliasSimpleType: SimpleTypeUnion = {
 		kind: "UNION",
@@ -103,21 +100,134 @@ export type IntersectionAlias = ObjectAlias & StringAlias
 			}
 		]
 	};
-	ctx.deepEqual(unionAliasSimpleType, toSimpleType(types.UnionAlias, typeChecker));
+	ctx.deepEqual(toSimpleType(types.UnionAlias, typeChecker), unionAliasSimpleType);
 
-	ctx.deepEqual(
-		{
-			kind: "INTERSECTION",
-			name: "IntersectionAlias",
-			types: [
-				objectAliasSimpleType,
+	ctx.deepEqual(toSimpleType(types.IntersectionAlias, typeChecker), {
+		kind: "INTERSECTION",
+		name: "IntersectionAlias",
+		types: [
+			objectAliasSimpleType,
+			{
+				kind: "STRING"
+			}
+		]
+	});
+});
+
+test("simple generic alias handling", ctx => {
+	const { types, typeChecker } = getTestTypes(
+		["GenericAlias", "GenericAliasInstance", "NestedGenericAliasInstance"],
+		`
+export type GenericAlias<T> = { hello: T }	
+export type GenericAliasInstance = GenericAlias<"cow">
+export type NestedGenericAliasInstance = {
+	nested: GenericAlias<{ inner: "cow" }>
+}
+	`
+	);
+
+	const expectedGenericAlias: SimpleTypeAlias = {
+		kind: "ALIAS",
+		name: "GenericAlias",
+		typeParameters: [
+			{
+				kind: "GENERIC_PARAMETER",
+				name: "T"
+			}
+		],
+		target: {
+			kind: "OBJECT",
+			name: undefined,
+			members: [
 				{
-					kind: "STRING"
+					name: "hello",
+					type: {
+						kind: "GENERIC_PARAMETER",
+						name: "T"
+					}
+				}
+			]
+		}
+	};
+	ctx.deepEqual(toSimpleType(types.GenericAlias, typeChecker), expectedGenericAlias);
+
+	const expectedGenericAliasInstance: SimpleTypeGenericArguments = {
+		kind: "GENERIC_ARGUMENTS",
+		name: "GenericAliasInstance",
+		instantiated: {
+			kind: "OBJECT",
+			name: undefined,
+			members: [
+				{
+					name: "hello",
+					type: {
+						kind: "STRING_LITERAL",
+						value: "cow"
+					}
 				}
 			]
 		},
-		toSimpleType(types.IntersectionAlias, typeChecker)
+		target: expectedGenericAlias,
+		typeArguments: [
+			{
+				kind: "STRING_LITERAL",
+				value: "cow"
+			}
+		]
+	};
+	// log(types.GenericAliasInstance);
+	// log(types.GenericAliasInstance.aliasTypeArguments);
+	// log(typeChecker.getTypeArguments(types.GenericAliasInstance.target as any));
+	// log(types.GenericAliasInstance.target);
+	// log(types.GenericAliasInstance.target.target);
+	ctx.deepEqual(
+		toSimpleType(types.GenericAliasInstance, typeChecker, {
+			cache: new WeakMap()
+			// preserveSimpleAliases: true
+		}),
+		expectedGenericAliasInstance
 	);
+
+	const expectedInnerType: SimpleTypeObject = {
+		kind: "OBJECT",
+		members: [
+			{
+				name: "inner",
+				type: {
+					kind: "STRING_LITERAL",
+					value: "cow"
+				}
+			}
+		]
+	};
+
+	const expectedNestedGenericAliasInstance: SimpleTypeObject = {
+		kind: "OBJECT",
+		name: "NestedGenericAliasInstance",
+		members: [
+			{
+				name: "nested",
+				type: {
+					kind: "GENERIC_ARGUMENTS",
+					name: "GenericAlias",
+					instantiated: {
+						kind: "OBJECT",
+						name: undefined,
+						members: [
+							{
+								name: "hello",
+								type: expectedInnerType
+							}
+						]
+					},
+					target: expectedGenericAlias,
+					typeArguments: [expectedInnerType]
+				}
+			}
+		]
+	};
+	const actualNestedInstance = toSimpleType(types.NestedGenericAliasInstance, typeChecker);
+	ctx.deepEqual(actualNestedInstance, expectedNestedGenericAliasInstance);
 });
 
 test("generic interface handling", ctx => {
@@ -150,11 +260,7 @@ test("generic interface handling", ctx => {
 			name: "GenericInterfaceExample",
 			instantiated: {
 				kind: "OBJECT",
-				call: undefined,
-				ctor: undefined,
-				indexType: undefined,
 				name: "GenericInterface",
-				typeParameters: undefined,
 				members: [
 					{
 						name: "hello",
@@ -175,8 +281,9 @@ test("generic interface handling", ctx => {
 	);
 });
 
-test("generic type alias handling", ctx => {
+test.only("generic type alias handling", ctx => {
 	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
+	log(types.ActivityPointer);
 	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);
 	const expectedActivityPointerInstance: SimpleTypeObject = {
 		kind: "OBJECT",
@@ -223,24 +330,24 @@ test("generic type alias handling", ctx => {
 	};
 
 	ctx.deepEqual(expectedActivityPointerInstance, activityPointerSimpleType);
+
 	// XXX: We actually want to understand this as an ALIAS to a GENERIC_ARGUMENTS,
 	// but we can't currently detect that, so we pass through the instantiated
 	// type with no generic information.
-	// ctx.deepEqual({
+	// ctx.deepEqual(activityPointerSimpleType, {
 	// 	kind: "ALIAS",
 	// 	name: "ActivityPointer",
 	// 	target: {
 	// 		kind: "GENERIC_ARGUMENTS",
 	// 		instantiated: expectedActivityPointerInstance,
-	// 		target: recordPointerDefinition,
+	// 		target: recordPointerExpected,
 	// 		typeArguments: [
 	// 			{
 	// 				kind: "STRING_LITERAL",
 	// 				value: "activity"
 	// 			}
 	// 		]
-	// 	},
-	//  activityPointerSimpleType,
+	// 	}
 	// });
 
 	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
@@ -289,11 +396,11 @@ function assert<T>(val: T | undefined, msg: string): T {
 
 function log(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
-
 	const flags = input && typeof input === "object" && isType(input) && debugTypeFlags(input);
+	const asString = input && typeof input === "object" && isType(input) && (input as any).checker.typeToString(input);
 
 	// eslint-disable-next-line no-console
-	console.log(flags, str.replace(/checker: {[\s\S]*?}/g, ""));
+	console.log(asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)"));
 }
 
 function debugTypeFlags(type: ts.Type) {

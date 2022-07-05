@@ -203,6 +203,24 @@ export function getTypeArguments(type: ObjectType, checker: TypeChecker, ts: typ
 		}
 	}
 
+	if (isInstantiated(type, ts) && type.aliasTypeArguments) {
+		return Array.from(type.aliasTypeArguments);
+	}
+
+	// https://stackoverflow.com/questions/66389805/how-to-extract-type-arguments-and-type-parameters-from-a-type-aliases-references
+	if (isInstantiated(type, ts) && (("mapper" in type) as any)) {
+		const symbol = type.aliasSymbol || type.getSymbol();
+		const node = type.node || (symbol && getDeclaration(symbol, ts));
+		const typeNode = node && (ts.isTypeNode(node) ? node : ts.isTypeAliasDeclaration(node) ? node.type : undefined);
+		console.log(checker.typeToString(type), "typeNode:", typeNode);
+		if (typeNode && ts.isTypeReferenceNode(typeNode)) {
+			const typeArguments = typeNode.typeArguments?.map(node => checker.getTypeAtLocation(node));
+			if (typeArguments) {
+				return typeArguments;
+			}
+		}
+	}
+
 	return [];
 }
 

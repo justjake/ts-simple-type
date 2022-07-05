@@ -1,3 +1,4 @@
+import * as ts from "typescript";
 import * as tsModule from "typescript";
 import { Declaration, Node, Signature, SignatureDeclaration, Symbol as ESSymbol, Type, TypeChecker } from "typescript";
 import { inspect } from "util";
@@ -5,10 +6,10 @@ import { DEFAULT_TYPE_CACHE } from "../constants";
 import {
 	isSimpleType,
 	SimpleType,
-	SimpleTypeAlias,
 	SimpleTypeEnumMember,
 	SimpleTypeFunction,
 	SimpleTypeFunctionParameter,
+	SimpleTypeGenericArguments,
 	SimpleTypeGenericParameter,
 	SimpleTypeInterface,
 	SimpleTypeLiteral,
@@ -22,6 +23,8 @@ import {
 	getDeclaration,
 	getModifiersFromDeclaration,
 	getTypeArguments,
+	getTypeOfSymbol,
+	isAlias,
 	isArray,
 	isBigInt,
 	isBigIntLiteral,
@@ -32,6 +35,7 @@ import {
 	isESSymbolLike,
 	isFunction,
 	isImplicitGeneric,
+	isInstantiated,
 	isLiteral,
 	isMethod,
 	isMethodSignature,
@@ -47,6 +51,7 @@ import {
 	isSymbol,
 	isThisType,
 	isTupleTypeReference,
+	isType,
 	isUndefined,
 	isUniqueESSymbol,
 	isUnknown,
@@ -56,6 +61,7 @@ import {
 export interface ToSimpleTypeOptions {
 	eager?: boolean;
 	cache?: WeakMap<Type, SimpleType>;
+	addMethods?: boolean;
 }
 
 interface ToSimpleTypeInternalOptions {
@@ -63,6 +69,7 @@ interface ToSimpleTypeInternalOptions {
 	checker: TypeChecker;
 	ts: typeof tsModule;
 	eager?: boolean;
+	addMethods?: boolean;
 }
 
 /**
@@ -91,6 +98,7 @@ export function toSimpleType(type: Type | Node | SimpleType, checker?: TypeCheck
 		checker,
 		eager: options.eager,
 		cache: options.cache || DEFAULT_TYPE_CACHE,
+		addMethods: options.addMethods,
 		ts: getTypescriptModule()
 	});
 }
@@ -191,61 +199,87 @@ function toSimpleTypeCached(type: Type, options: ToSimpleTypeInternalOptions): S
  * @param type
  * @param options
  */
-function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (target: SimpleType) => SimpleType; target: Type } | undefined {
-	// Check for alias reference
-	if (type.aliasSymbol != null) {
+function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
+	// Check if the type is a generic interface/class reference and lift it.
+	// TODO: we need to track down instantiated types that were instantiated with a "mapper".
+	//       currently, don't know how to squeeze the type arguments out of those...
+	//       will need to do more research, or find a hacky way.
+	if (isObject(type, options.ts) && (isObjectTypeReference(type, options.ts) || isInstantiated(type, options.ts)) /* TODO: figure this case out */) {
+		const typeArguments = options.checker.getTypeArguments(type);
+		if (typeArguments.length > 0) {
+			// Special case for array, tuple and promise, they are generic in themselves
+			if (isImplicitGeneric(type, options.checker, options.ts)) {
+				return undefined;
+			}
+
+			if (type.target === type) {
+				// Circular self-target.
+				// No need for a wrapper, we can infer this generic interface type correctly
+				return undefined;
+			}
+
+			return {
+				instantiated: type,
+				generic: instantiated => {
+					const typeArguments = Array.from(options.checker.getTypeArguments(type) || []).map(t => toSimpleTypeCached(t, options));
+
+					const generic: SimpleTypeGenericArguments = {
+						kind: "GENERIC_ARGUMENTS",
+						target: toSimpleTypeCached(type.target, options) as any,
+						instantiated,
+						typeArguments
+					};
+
+					if (isAlias(type, options.ts)) {
+						const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
+						const typeParameters = getTypeParameters(aliasDeclaration, options);
+
+						return {
+							kind: "ALIAS",
+							name: type.aliasSymbol!.getName() || "",
+							target: generic,
+							typeParameters
+						};
+					} else {
+						return generic;
+					}
+				}
+			};
+		}
+	}
+
+	if (isAlias(type, options.ts)) {
 		const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
 		const typeParameters = getTypeParameters(aliasDeclaration, options);
 
 		return {
-			target: type,
-			generic: target => {
-				// Lift the simple type to an ALIAS type.
-				const aliasType: SimpleTypeAlias = {
+			// TODO: better type safety
+			instantiated: (type as any).target || type,
+			generic: instantiated => {
+				return {
 					kind: "ALIAS",
 					name: type.aliasSymbol!.getName() || "",
-					target,
+					target: instantiated,
 					typeParameters
-				};
-
-				// Lift the alias type if it uses generic arguments.
-				if (type.aliasTypeArguments != null) {
-					const typeArguments = Array.from(type.aliasTypeArguments || []).map(t => toSimpleTypeCached(t, options));
-
-					return {
-						kind: "GENERIC_ARGUMENTS",
-						target: aliasType,
-						typeArguments
-					};
-				}
-
-				return target;
-			}
-		};
-	}
-
-	// Check if the type is a generic interface/class reference and lift it.
-	else if (isObject(type, options.ts) && isObjectTypeReference(type, options.ts) && type.typeArguments != null && type.typeArguments.length > 0) {
-		// Special case for array, tuple and promise, they are generic in themselves
-		if (isImplicitGeneric(type, options.checker, options.ts)) {
-			return undefined;
-		}
-
-		return {
-			target: type.target,
-			generic: target => {
-				const typeArguments = Array.from(type.typeArguments || []).map(t => toSimpleTypeCached(t, options));
-
-				return {
-					kind: "GENERIC_ARGUMENTS",
-					target,
-					typeArguments
 				};
 			}
 		};
 	}
 
 	return undefined;
+}
+
+function withMethods(obj: SimpleType, type: Type, options: ToSimpleTypeInternalOptions): SimpleType {
+	if (!options.addMethods) {
+		return obj;
+	}
+
+	return {
+		...obj,
+		getType: () => type,
+		getTypeChecker: () => options.checker,
+		getSymbol: () => type.getSymbol()
+	};
 }
 
 function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions): SimpleType {
@@ -258,9 +292,12 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 
 	const generic = liftGenericType(type, options);
 	if (generic != null) {
-		type = generic.target;
+		type = generic.instantiated;
 	}
 
+	const enhance = (obj: SimpleType) => withMethods(obj, type, options);
+
+	// Literal types
 	if (isLiteral(type, ts)) {
 		const literalSimpleType = primitiveLiteralToSimpleType(type, checker, ts);
 		if (literalSimpleType != null) {
@@ -269,17 +306,17 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 				const parentSymbol = (symbol as ESSymbol & { parent: ESSymbol | undefined }).parent;
 
 				if (parentSymbol != null) {
-					return {
+					return enhance({
 						name: name || "",
 						fullName: `${parentSymbol.name}.${name}`,
 						kind: "ENUM_MEMBER",
 						type: literalSimpleType
-					};
+					});
 				}
 			}
 
 			// Literals types
-			return literalSimpleType;
+			return enhance(literalSimpleType);
 		}
 	}
 
@@ -447,7 +484,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 				name: symbol.name,
 				optional: (symbol.flags & ts.SymbolFlags.Optional) !== 0,
 				modifiers: declaration != null ? getModifiersFromDeclaration(declaration, ts) : [],
-				type: toSimpleTypeCached(checker.getTypeAtLocation(symbol.valueDeclaration!), options)
+				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker, ts), options)
 			};
 		});
 
@@ -488,9 +525,9 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 
 	// Handle "object" type
 	else if (isNonPrimitive(type, ts)) {
-		return {
+		return enhance({
 			kind: "NON_PRIMITIVE"
-		};
+		});
 	}
 
 	// Function
@@ -513,12 +550,15 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 		}
 
 		const defaultType = type.getDefault();
+		const constraint = type.getConstraint();
+		const constraintSimpleType = constraint != null ? toSimpleTypeCached(constraint, options) : undefined;
 		const defaultSimpleType = defaultType != null ? toSimpleTypeCached(defaultType, options) : undefined;
 
 		simpleType = {
 			kind: "GENERIC_PARAMETER",
 			name: symbol.getName(),
-			default: defaultSimpleType
+			default: defaultSimpleType,
+			constraint: constraintSimpleType
 		} as SimpleTypeGenericParameter;
 	}
 
@@ -526,16 +566,17 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 	if (simpleType == null) {
 		simpleType = {
 			kind: "ANY",
+			error: "Not supported",
 			name
 		};
 	}
 
 	// Lift generic types and aliases if possible
 	if (generic != null) {
-		return generic.generic(simpleType);
+		return enhance(generic.generic(simpleType));
 	}
 
-	return simpleType;
+	return enhance(simpleType);
 }
 
 function primitiveLiteralToSimpleType(type: Type, checker: TypeChecker, ts: typeof tsModule): SimpleTypeLiteral | undefined {
@@ -665,6 +706,32 @@ function getTypeParameters(obj: ESSymbol | Declaration | undefined, options: ToS
 function log(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 
+	const flags = input && typeof input === "object" && isType(input) && debugTypeFlags(input);
+
 	// eslint-disable-next-line no-console
-	console.log(str.replace(/checker: {[\s\S]*?}/g, ""));
+	console.log(flags, str.replace(/checker: {[\s\S]*?}/g, ""));
+}
+
+export function debugTypeFlags(type: Type) {
+	const ts = getTypescriptModule();
+	const flags = type.flags;
+	const typeFlags: Record<string, boolean> = {};
+	const objectFlags: Record<string, boolean> = {};
+	for (const flag in ts.TypeFlags) {
+		if ((ts.TypeFlags as any)[flag] & flags) {
+			typeFlags[flag] = true;
+		}
+	}
+	if (flags & ts.TypeFlags.Object) {
+		const flags2 = (type as ts.ObjectType).objectFlags;
+		for (const flag in ts.ObjectFlags) {
+			if ((ts.ObjectFlags as any)[flag] & flags2) {
+				objectFlags[flag] = true;
+			}
+		}
+	}
+	return {
+		typeFlags,
+		objectFlags
+	};
 }

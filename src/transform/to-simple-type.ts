@@ -200,6 +200,7 @@ function toSimpleTypeCached(type: Type, options: ToSimpleTypeInternalOptions): S
  * @param options
  */
 function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
+	const enhance = (instantiated: SimpleType) => withMethods(instantiated, type, options);
 	// Check if the type is a generic interface/class reference and lift it.
 	// TODO: we need to track down instantiated types that were instantiated with a "mapper".
 	//       currently, don't know how to squeeze the type arguments out of those...
@@ -234,14 +235,14 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 						const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
 						const typeParameters = getTypeParameters(aliasDeclaration, options);
 
-						return {
+						return enhance({
 							kind: "ALIAS",
 							name: type.aliasSymbol!.getName() || "",
 							target: generic,
 							typeParameters
-						};
+						});
 					} else {
-						return generic;
+						return enhance(generic);
 					}
 				}
 			};
@@ -260,12 +261,12 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 			// TODO: better type safety
 			instantiated: (type as any).target || type,
 			generic: instantiated => {
-				return {
+				return enhance({
 					kind: "ALIAS",
 					name: type.aliasSymbol!.getName() || "",
 					target: instantiated,
 					typeParameters
-				};
+				});
 			}
 		};
 		// }
@@ -578,7 +579,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 
 	// Lift generic types and aliases if possible
 	if (generic != null) {
-		return enhance(generic.generic(simpleType));
+		return generic.generic(enhance(simpleType));
 	}
 
 	return enhance(simpleType);

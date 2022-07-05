@@ -251,7 +251,11 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 	if (isAlias(type, options.ts)) {
 		const aliasDeclaration = getDeclaration(type.aliasSymbol, options.ts);
 		const typeParameters = getTypeParameters(aliasDeclaration, options);
-
+		// TODO: are we creating too many alias wrapper types?
+		//       There's not much point....?
+		//       Maybe we should just use the underlying type unless there's parameters or JSDoc here?
+		//       And we can always try type.aliasSymbol.getName() before type.getSymbol().getName
+		// if (typeParameters) {
 		return {
 			// TODO: better type safety
 			instantiated: (type as any).target || type,
@@ -264,6 +268,7 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 				};
 			}
 		};
+		// }
 	}
 
 	return undefined;

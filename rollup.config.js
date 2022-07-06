@@ -1,4 +1,4 @@
-import ts from "@wessberg/rollup-plugin-ts";
+import ts from "rollup-plugin-ts";
 
 const pkg = require("./package.json");
 const input = "src/index.ts";

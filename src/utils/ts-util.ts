@@ -15,6 +15,7 @@ import {
 	TypeReference,
 	UniqueESSymbolType
 } from "typescript";
+import type * as ts from "typescript";
 import { SimpleTypeModifierKind } from "../simple-type";
 import { and, or } from "./list-util";
 
@@ -60,6 +61,10 @@ export function isUniqueESSymbol(type: Type, ts: typeof tsModule): type is Uniqu
 
 export function isESSymbolLike(type: Type, ts: typeof tsModule) {
 	return typeHasFlag(type, ts.TypeFlags.ESSymbolLike) || type.symbol?.name === "Symbol";
+}
+
+export function isAlias(type: Type, ts: typeof tsModule): type is Type & { aliasSymbol: Symbol } {
+	return Boolean(type.aliasSymbol);
 }
 
 export function isLiteral(type: Type, ts: typeof tsModule): type is LiteralType {
@@ -125,6 +130,10 @@ export function isNever(type: Type, ts: typeof tsModule): boolean {
 
 export function isObjectTypeReference(type: ObjectType, ts: typeof tsModule): type is TypeReference {
 	return hasFlag(type.objectFlags, ts.ObjectFlags.Reference);
+}
+
+export function isInstantiated(type: ObjectType, ts: typeof tsModule): type is TypeReference {
+	return hasFlag(type.objectFlags, ts.ObjectFlags.Instantiated);
 }
 
 export function isSymbol(obj: object): obj is Symbol {
@@ -194,6 +203,29 @@ export function getTypeArguments(type: ObjectType, checker: TypeChecker, ts: typ
 		}
 	}
 
+	if (isInstantiated(type, ts) && type.aliasTypeArguments) {
+		return Array.from(type.aliasTypeArguments);
+	}
+
+	// https://stackoverflow.com/questions/66389805/how-to-extract-type-arguments-and-type-parameters-from-a-type-aliases-references
+	// This doesn't work in all cases.
+	// For example, sometimes the aliasNode isn't a TypeReferenceNode, and/or
+	// maybe we need to "climb" upwards from the node looking for a type reference?
+	// or something. This stuff is really confusing.
+	if (isInstantiated(type, ts) && (("mapper" in type) as any)) {
+		const symbol = type.aliasSymbol || type.getSymbol();
+		const node = type.node || (symbol && getDeclaration(symbol, ts));
+		const typeNode = node && (ts.isTypeNode(node) ? node : ts.isTypeAliasDeclaration(node) ? node.type : undefined);
+		// const typeNode = checker.typeToTypeNode(type, undefined, undefined); // doesnt work
+		// console.log(checker.typeToString(type), "typeNode:", typeNode);
+		if (typeNode && ts.isTypeReferenceNode(typeNode)) {
+			const typeArguments = typeNode.typeArguments?.map(node => checker.getTypeAtLocation(node));
+			if (typeArguments) {
+				return typeArguments;
+			}
+		}
+	}
+
 	return [];
 }
 
@@ -242,4 +274,53 @@ export function isMethodSignature(type: Type, ts: typeof tsModule): boolean {
 	const decl = getDeclaration(symbol, ts);
 	if (decl == null) return false;
 	return decl.kind === ts.SyntaxKind.MethodSignature;
+}
+
+export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, ts: typeof tsModule): Type {
+	const checker = publicChecker as TypeCheckerInternal;
+	if (checker.getTypeOfSymbol) {
+		return checker.getTypeOfSymbol(symbol);
+	}
+
+	const walker = checker.getSymbolWalker(sym => sym === symbol);
+	const { visitedTypes } = walker.walkSymbol(symbol);
+	if (visitedTypes.length === 0) {
+		throw new Error(`No types walked for symbol '${symbol.getName()}'`);
+	}
+
+	// Logic here: type IDs are assigned by instantiation order.
+	// Therefor, if one of the visited types composes the other visited types,
+	// it will have a higher ID. Selecting the highest ID seems to be a best guess.
+	let maxType = visitedTypes[0] as Type & { id: number };
+	for (const visited of visitedTypes) {
+		if ((visited as any).id > maxType.id) {
+			maxType = visited as Type & { id: number };
+		}
+	}
+	return maxType;
+}
+
+export function symbolIsOptional(sym: Symbol, ts: typeof tsModule): boolean {
+	return (sym.flags & ts.SymbolFlags.Optional) !== 0;
+}
+
+/** Expose internal-only functions from ts.TypeChecker */
+interface TypeCheckerInternal extends ts.TypeChecker {
+	getTypeOfPropertyOfType(type: ts.Type, propertyName: string): ts.Type | undefined;
+	getSymbolWalker(accept?: (symbol: ts.Symbol) => boolean): SymbolWalker;
+	getTypeOfSymbol?: (symbol: ts.Symbol) => ts.Type;
+}
+
+/** Internal ts type copy-pasted from  */
+interface SymbolWalker {
+	/** Note: Return values are not ordered. */
+	walkType(root: ts.Type): {
+		visitedTypes: readonly ts.Type[];
+		visitedSymbols: readonly ts.Symbol[];
+	};
+	/** Note: Return values are not ordered. */
+	walkSymbol(root: ts.Symbol): {
+		visitedTypes: readonly ts.Type[];
+		visitedSymbols: readonly ts.Symbol[];
+	};
 }

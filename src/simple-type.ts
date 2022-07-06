@@ -1,3 +1,5 @@
+import type * as ts from "typescript";
+
 export type SimpleTypeKind =
 	// Primitives types
 	| "STRING_LITERAL"
@@ -49,6 +51,10 @@ export type SimpleTypeModifierKind = "EXPORT" | "AMBIENT" | "PUBLIC" | "PRIVATE"
 export interface SimpleTypeBase {
 	readonly kind: SimpleTypeKind;
 	readonly name?: string;
+	readonly error?: string;
+	getType?: () => ts.Type;
+	getTypeChecker?: () => ts.TypeChecker;
+	getSymbol?: () => ts.Symbol | undefined;
 }
 
 // ##############################
@@ -162,8 +168,8 @@ export interface SimpleTypeIntersection extends SimpleTypeBase {
 // ##############################
 
 export interface SimpleTypeMember {
-	readonly optional: boolean;
 	readonly type: SimpleType;
+	readonly optional?: boolean;
 	readonly modifiers?: SimpleTypeModifierKind[];
 }
 
@@ -207,8 +213,8 @@ export interface SimpleTypeFunctionParameter {
 }
 
 export interface SimpleTypeTypePredicate {
-	readonly paramaterName: string;
-	readonly paramaterIndex: number;
+	readonly parameterName: string;
+	readonly parameterIndex: number;
 	readonly type: SimpleType;
 }
 
@@ -232,17 +238,32 @@ export interface SimpleTypeMethod extends SimpleTypeBase {
 // Generics
 // ##############################
 
+/**
+ * An instantiation of a generic type.
+ *
+ * ```
+ * type Hello<T> = { hello: T }
+ * type HelloString = Hello<string>
+ * ```
+ *
+ * Type `HelloString` should be a GENERIC_ARGUMENTS with target of Hello
+ * and a instantiated of `object { hello: string }`
+ */
 export interface SimpleTypeGenericArguments extends SimpleTypeBase {
-	readonly kind: "GENERIC_ARGUMENTS";
-	readonly name?: undefined;
-	readonly target: SimpleType;
+	readonly kind: "GENERIC_ARGUMENTS"; // TODO: rename
+	/** The generic type being instantiated */
+	readonly target: Extract<SimpleType, { typeParameters?: unknown }>;
+	/** The arguments passed to the generic */
 	readonly typeArguments: SimpleType[];
+	/** The concrete type resulting from applying the type parameters to the generic */
+	readonly instantiated: SimpleType; // TODO
 }
 
 export interface SimpleTypeGenericParameter extends SimpleTypeBase {
 	readonly name: string;
 	readonly kind: "GENERIC_PARAMETER";
 	readonly default?: SimpleType;
+	readonly constraint?: SimpleType;
 }
 
 export interface SimpleTypeAlias extends SimpleTypeBase {

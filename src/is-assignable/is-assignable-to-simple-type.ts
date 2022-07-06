@@ -809,9 +809,9 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 						if (memberB != null) membersInCommon += 1;
 						return memberB == null
 							? // If corresponding "memberB" couldn't be found, return true if "memberA" is optional
-							  memberA.optional
+							  Boolean(memberA.optional)
 							: // If corresponding "memberB" was found, return true if "memberA" is optional or "memberB" is not optional
-							  memberA.optional || !memberB.optional;
+							  Boolean(memberA.optional || !memberB.optional);
 					});
 
 					if (!requiredMembersInTypeAExistsInTypeB) {
@@ -917,7 +917,7 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// Compare that every type of typeB is assignable to corresponding members in typeA
 			return and(typeA.members, (memberA, i) => {
 				const memberB = typeB.members[i];
-				if (memberB == null) return memberA.optional;
+				if (memberB == null) return Boolean(memberA.optional);
 				return isAssignableToSimpleTypeCached(memberA.type, memberB.type, options);
 			});
 		}
@@ -1038,7 +1038,7 @@ function logDebugHeader(typeA: SimpleType, typeB: SimpleType, options: IsAssigna
 	try {
 		result = isAssignableToSimpleType(typeA, typeB, silentConfig);
 	} catch (e) {
-		result = e.message;
+		result = (e as Error).message;
 	}
 	const depthChars = "   ".repeat(options.depth);
 

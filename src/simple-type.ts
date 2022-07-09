@@ -273,7 +273,7 @@ export interface SimpleTypeMethod extends SimpleTypeBase {
 export interface SimpleTypeGenericArguments extends SimpleTypeBase {
 	readonly kind: "GENERIC_ARGUMENTS"; // TODO: rename
 	/** The generic type being instantiated */
-	readonly target: Extract<SimpleType, { typeParameters?: unknown }>;
+	readonly target: Extract<SimpleType, { typeParameters?: unknown }> | SimpleTypeCustom;
 	/** The arguments passed to the generic */
 	readonly typeArguments: SimpleType[];
 	/** The concrete type resulting from applying the type parameters to the generic */
@@ -324,7 +324,7 @@ export interface SimpleTypePromise extends SimpleTypeBase {
 
 export interface SimpleTypeCustom<T = unknown> extends SimpleTypeBase {
 	readonly kind: "CUSTOM";
-	readonly data: T;
+	readonly extra?: T;
 }
 
 export type SimpleType =

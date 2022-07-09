@@ -66,6 +66,16 @@ interface ToSimpleTypePureOptions {
 	cache?: WeakMap<Type, SimpleType>;
 }
 
+interface ToCustomTypeArguments {
+	type: ts.Type;
+	checker: ts.TypeChecker;
+	ts: typeof tsModule;
+	/** True when `type` is the target of a GENERIC_ARGUMENTS instantiation */
+	generic: boolean;
+}
+
+type ToCustomType = (args: ToCustomTypeArguments) => SimpleType | ((concrete: SimpleType) => SimpleType) | undefined;
+
 interface ToSimpleTypeConfigureTypeConstruction extends ToSimpleTypePureOptions {
 	/** With these options, the user must provide a cache because options modify how types are built, making repeat calls with the default cache non-deterministic */
 	cache: WeakMap<Type, SimpleType>;
@@ -73,6 +83,8 @@ interface ToSimpleTypeConfigureTypeConstruction extends ToSimpleTypePureOptions 
 	addMethods?: boolean;
 	/** Add { kind: "ALIAS" } wrapper types around simple aliases. Otherwise, remove these wrappers. */
 	preserveSimpleAliases?: boolean;
+	/** If defined, called with each type, should return a CUSTOM type or undefined */
+	toCustomType?: ToCustomType;
 }
 
 export type ToSimpleTypeOptions = ToSimpleTypePureOptions | ToSimpleTypeConfigureTypeConstruction;
@@ -114,6 +126,7 @@ export function toSimpleType(type: Type | Node | SimpleType, checker?: TypeCheck
 		cache: options.cache || DEFAULT_TYPE_CACHE,
 		addMethods: "addMethods" in options ? options.addMethods : undefined,
 		preserveSimpleAliases: "preserveSimpleAliases" in options ? options.preserveSimpleAliases : undefined,
+		toCustomType: "toCustomType" in options ? options.toCustomType : undefined,
 		ts: getTypescriptModule()
 	});
 }
@@ -214,8 +227,8 @@ function toSimpleTypeCached(type: Type, options: ToSimpleTypeInternalOptions): S
  * @param type
  * @param options
  */
-function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { generic: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
-	const enhance = (instantiated: SimpleType) => withMethods(instantiated, type, options);
+function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { wrap: (instantiated: SimpleType) => SimpleType; instantiated: Type } | undefined {
+	const addMethods = (instantiated: SimpleType) => withMethods(instantiated, type, options);
 	const wrapIfAlias = (instantiated: SimpleType, ignoreTypeParams?: boolean): SimpleType => {
 		if (isAlias(type, options.ts)) {
 			const aliasName = type.aliasSymbol!.getName() || "";
@@ -264,19 +277,34 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 
 			return {
 				instantiated: type,
-				generic: instantiated => {
+				wrap: instantiated => {
 					const typeArgumentsSimpleType = typeArguments.map(t => toSimpleTypeCached(t, options));
 
-					const generic: SimpleTypeGenericArguments = {
+					const customType = options.toCustomType?.({
+						...options,
+						type: type.target,
+						generic: true
+					});
+
+					const targetSimpleType =
+						typeof customType === "function"
+							? toSimpleTypeCached(type.target, options) /// XXX unlimited recursion?
+							: customType;
+
+					let generic: SimpleType = {
 						kind: "GENERIC_ARGUMENTS",
-						target: toSimpleTypeCached(type.target, options) as any,
+						target: targetSimpleType as any,
 						instantiated,
 						typeArguments: typeArgumentsSimpleType
 					};
 
+					if (typeof customType === "function") {
+						generic = customType(generic);
+					}
+
 					// This makes current tests work, but may be actually incorrect.
 					//                                  vvvvvv
-					return enhance(wrapIfAlias(generic, true));
+					return addMethods(wrapIfAlias(generic, true));
 				}
 			};
 		}
@@ -286,8 +314,8 @@ function liftGenericType(type: Type, options: ToSimpleTypeInternalOptions): { ge
 		return {
 			// TODO: better type safety
 			instantiated: (type as any).target || type,
-			generic: instantiated => {
-				return enhance(wrapIfAlias(instantiated));
+			wrap: instantiated => {
+				return addMethods(wrapIfAlias(instantiated));
 			}
 		};
 	}
@@ -330,20 +358,37 @@ function memberWithMethods<T extends SimpleTypeMember>(obj: T, symbol: ts.Symbol
 	};
 }
 
-function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions): SimpleType {
+function toSimpleTypeInternal(outerType: Type, options: ToSimpleTypeInternalOptions): SimpleType {
 	const { checker, ts } = options;
 
+	let type = outerType;
 	const symbol: ESSymbol | undefined = type.getSymbol();
 	const name = symbol != null ? getRealSymbolName(symbol, ts) : undefined;
 
 	let simpleType: SimpleType | undefined;
+	let enhance: (instantiated: SimpleType) => SimpleType = t => withMethods(t, type, options);
 
 	const generic = liftGenericType(type, options);
 	if (generic != null) {
 		type = generic.instantiated;
+		const originalEnhance = enhance;
+		enhance = t => generic.wrap(originalEnhance(t));
 	}
 
-	const enhance = (obj: SimpleType) => withMethods(obj, type, options);
+	// Custom types
+	const customType = options.toCustomType?.({
+		...options,
+		type,
+		generic: false
+	});
+	if (customType) {
+		if (typeof customType === "function") {
+			const originalEnhance = enhance;
+			enhance = t => withMethods(customType(originalEnhance(t)), outerType, options);
+		} else {
+			return enhance(customType);
+		}
+	}
 
 	// Literal types
 	if (isLiteral(type, ts)) {
@@ -676,11 +721,6 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			error: "Not supported",
 			name
 		};
-	}
-
-	// Lift generic types and aliases if possible
-	if (generic != null) {
-		return generic.generic(enhance(simpleType));
 	}
 
 	return enhance(simpleType);

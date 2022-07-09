@@ -61,16 +61,23 @@ import {
 	symbolIsOptional
 } from "../utils/ts-util";
 
-export interface ToSimpleTypeOptions {
+interface ToSimpleTypePureOptions {
 	eager?: boolean;
 	cache?: WeakMap<Type, SimpleType>;
+}
+
+interface ToSimpleTypeConfigureTypeConstruction extends ToSimpleTypePureOptions {
+	/** With these options, the user must provide a cache because options modify how types are built, making repeat calls with the default cache non-deterministic */
+	cache: WeakMap<Type, SimpleType>;
 	/** Add methods like .getType(), .getTypeChecker() to each simple type */
 	addMethods?: boolean;
 	/** Add { kind: "ALIAS" } wrapper types around simple aliases. Otherwise, remove these wrappers. */
 	preserveSimpleAliases?: boolean;
 }
 
-interface ToSimpleTypeInternalOptions {
+export type ToSimpleTypeOptions = ToSimpleTypePureOptions | ToSimpleTypeConfigureTypeConstruction;
+
+interface ToSimpleTypeInternalOptions extends ToSimpleTypeConfigureTypeConstruction {
 	cache: WeakMap<Type, SimpleType>;
 	checker: TypeChecker;
 	ts: typeof tsModule;
@@ -105,8 +112,8 @@ export function toSimpleType(type: Type | Node | SimpleType, checker?: TypeCheck
 		checker,
 		eager: options.eager,
 		cache: options.cache || DEFAULT_TYPE_CACHE,
-		addMethods: options.addMethods,
-		preserveSimpleAliases: options.preserveSimpleAliases,
+		addMethods: "addMethods" in options ? options.addMethods : undefined,
+		preserveSimpleAliases: "preserveSimpleAliases" in options ? options.preserveSimpleAliases : undefined,
 		ts: getTypescriptModule()
 	});
 }

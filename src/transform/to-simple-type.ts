@@ -291,11 +291,16 @@ function withMethods(obj: SimpleType, type: Type, options: ToSimpleTypeInternalO
 		return obj;
 	}
 
+	const checker = options.checker;
+
 	return {
 		...obj,
-		getType: () => type,
-		getTypeChecker: () => options.checker,
-		getSymbol: () => type.getSymbol()
+		getTypescript: () => ({
+			type,
+			checker,
+			// TODO: pass this in?
+			symbol: type.aliasSymbol || type.getSymbol()
+		})
 	};
 }
 

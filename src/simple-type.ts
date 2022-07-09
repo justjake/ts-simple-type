@@ -52,9 +52,18 @@ export interface SimpleTypeBase {
 	readonly kind: SimpleTypeKind;
 	readonly name?: string;
 	readonly error?: string;
-	getType?: () => ts.Type;
-	getTypeChecker?: () => ts.TypeChecker;
-	getSymbol?: () => ts.Symbol | undefined;
+	// Note about methods: it would be great if the converter always added the
+	// methods - then we could make these fields non-optional; but doing so makes
+	// it annoying user code to synthesize SimpleType objects.
+	// So, we'll leave them optional for now.
+	/**
+	 * Available if `addMethods` parameter set in `toSimpleType`.
+	 */
+	getTypescript?: () => {
+		type: ts.Type;
+		checker: ts.TypeChecker;
+		symbol?: ts.Symbol;
+	};
 }
 
 // ##############################

@@ -41,9 +41,11 @@ test("it adds methods when addMethods is set", ctx => {
 		addMethods: true
 	});
 
-	ctx.is(simpleType.getType?.(), types.SimpleAliasExample);
-	ctx.is(simpleType.getTypeChecker?.(), typeChecker);
-	ctx.is(simpleType.getSymbol?.(), types.SimpleAliasExample.getSymbol());
+	const toTs = simpleType.getTypescript?.();
+
+	ctx.is(toTs?.type, types.SimpleAliasExample);
+	ctx.is(toTs?.checker, typeChecker);
+	ctx.is(toTs?.symbol, types.SimpleAliasExample.aliasSymbol || types.SimpleAliasExample.symbol);
 });
 
 test("basic type alias handling", ctx => {

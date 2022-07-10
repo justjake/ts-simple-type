@@ -1,8 +1,7 @@
 import test from "ava";
 import { SimpleTypePath } from "../src/simple-type-path";
-import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { toSimpleType } from "../src/transform/to-simple-type";
-import { mapJsonStep, visitDepthFirst, Visitor } from "../src/visitor";
+import { Visitor, walkDepthFirst } from "../src/visitor";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TYPES = `
@@ -40,7 +39,7 @@ test("visitDepthFirst", ctx => {
 	const visitBeforeOrder: string[] = [];
 	const visitAfterOrder: string[] = [];
 
-	visitDepthFirst([], simpleType, {
+	walkDepthFirst([], simpleType, {
 		before(args) {
 			visitBeforeOrder.push(SimpleTypePath.toString(args.path, args.type));
 		},
@@ -49,110 +48,8 @@ test("visitDepthFirst", ctx => {
 		}
 	});
 
-	ctx.deepEqual(visitBeforeOrder, [
-		"T: Haystack",
-		"Haystack.hello: { world: string; } & { today: [1, 2, 3]; }",
-		"Haystack.hello~&0~>: { world: string; }",
-		"Haystack.hello~&0~>.world: string",
-		"Haystack.hello~&1~>: { today: [1, 2, 3]; }",
-		"Haystack.hello~&1~>.today: [1, 2, 3]",
-		"Haystack.hello~&1~>.today[0]: 1",
-		"Haystack.hello~&1~>.today[1]: 2",
-		"Haystack.hello~&1~>.today[2]: 3",
-		'Haystack.frog: GenericInterface<{ table: "block"; }, { value: string; }>',
-		"Haystack.frog: GenericInterface",
-		'Haystack.frog.constrained: { table: "block"; }',
-		'Haystack.frog.constrained.table: "block"',
-		"Haystack.frog.defaulted: { value: string; }",
-		"Haystack.frog.defaulted.value: string",
-		"Haystack.frog~instantiatedFrom~>: GenericInterface",
-		"Haystack.frog~instantiatedFrom~>.constrained: ParamWithConstraint",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>: Obj1",
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table: "block" | "collection" | "activity"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|0~>: "block"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|1~>: "collection"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|2~>: "activity"',
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>~(param)~>: Obj2",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>~(param)~>.object2: true",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>.(): Obj2",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>.().object2: true",
-		"Haystack.frog~instantiatedFrom~>.defaulted: ParamWithDefault",
-		"Haystack.frog~instantiatedFrom~>.defaulted~defaultType~>: Obj2",
-		"Haystack.frog~instantiatedFrom~>.defaulted~defaultType~>.object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>: ParamWithConstraint",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>: Obj1",
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table: "block" | "collection" | "activity"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|0~>: "block"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|1~>: "collection"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|2~>: "activity"',
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>~(param)~>: Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>~(param)~>.object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>.(): Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>.().object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>: ParamWithDefault",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>~defaultType~>: Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>~defaultType~>.object2: true",
-		'Haystack.frog<<0>>: { table: "block"; }',
-		'Haystack.frog<<0>>.table: "block"',
-		"Haystack.frog<<1>>: { value: string; }",
-		"Haystack.frog<<1>>.value: string"
-	]);
-	ctx.deepEqual(visitAfterOrder, [
-		"Haystack.hello~&0~>.world: string",
-		"Haystack.hello~&0~>: { world: string; }",
-		"Haystack.hello~&1~>.today[0]: 1",
-		"Haystack.hello~&1~>.today[1]: 2",
-		"Haystack.hello~&1~>.today[2]: 3",
-		"Haystack.hello~&1~>.today: [1, 2, 3]",
-		"Haystack.hello~&1~>: { today: [1, 2, 3]; }",
-		"Haystack.hello: { world: string; } & { today: [1, 2, 3]; }",
-		'Haystack.frog.constrained.table: "block"',
-		'Haystack.frog.constrained: { table: "block"; }',
-		"Haystack.frog.defaulted.value: string",
-		"Haystack.frog.defaulted: { value: string; }",
-		"Haystack.frog: GenericInterface",
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|0~>: "block"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|1~>: "collection"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table~|2~>: "activity"',
-		'Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.table: "block" | "collection" | "activity"',
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>~(param)~>.object2: true",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>~(param)~>: Obj2",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>.().object2: true",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>.(): Obj2",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method~asFunction~>: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>.method: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~>.constrained~constraintType~>: Obj1",
-		"Haystack.frog~instantiatedFrom~>.constrained: ParamWithConstraint",
-		"Haystack.frog~instantiatedFrom~>.defaulted~defaultType~>.object2: true",
-		"Haystack.frog~instantiatedFrom~>.defaulted~defaultType~>: Obj2",
-		"Haystack.frog~instantiatedFrom~>.defaulted: ParamWithDefault",
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|0~>: "block"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|1~>: "collection"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table~|2~>: "activity"',
-		'Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.table: "block" | "collection" | "activity"',
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>~(param)~>.object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>~(param)~>: Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>.().object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>.(): Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method~asFunction~>: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>.method: (param: { object2: true; }) => { object2: true; }",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>~constraintType~>: Obj1",
-		"Haystack.frog~instantiatedFrom~><ParamWithConstraint>: ParamWithConstraint",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>~defaultType~>.object2: true",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>~defaultType~>: Obj2",
-		"Haystack.frog~instantiatedFrom~><ParamWithDefault>: ParamWithDefault",
-		"Haystack.frog~instantiatedFrom~>: GenericInterface",
-		'Haystack.frog<<0>>.table: "block"',
-		'Haystack.frog<<0>>: { table: "block"; }',
-		"Haystack.frog<<1>>.value: string",
-		"Haystack.frog<<1>>: { value: string; }",
-		'Haystack.frog: GenericInterface<{ table: "block"; }, { value: string; }>',
-		"T: Haystack"
-	]);
+	ctx.snapshot(visitBeforeOrder, "pre-order");
+	ctx.snapshot(visitAfterOrder, "post-order");
 });
 
 test("visitDepthFirst: makes errors nice", ctx => {
@@ -164,7 +61,7 @@ test("visitDepthFirst: makes errors nice", ctx => {
 
 	ctx.throws(
 		() => {
-			visitDepthFirst([], simpleType, {
+			walkDepthFirst([], simpleType, {
 				before: ({ path }) => {
 					if (path.length > 5) throw new Error("oops");
 				},
@@ -177,7 +74,7 @@ test("visitDepthFirst: makes errors nice", ctx => {
 	);
 });
 
-test("visitDepthFirst: JSON traversal", ctx => {
+test("mapJsonStep", ctx => {
 	const { types, typeChecker } = getTestTypes(["Haystack"], EXAMPLE_TYPES);
 	const simpleType = toSimpleType(types.Haystack, typeChecker, {
 		addMethods: true,
@@ -186,35 +83,13 @@ test("visitDepthFirst: JSON traversal", ctx => {
 
 	const visitBeforeOrder: string[] = [];
 
-	visitDepthFirst([], simpleType, {
+	walkDepthFirst([], simpleType, {
 		before(args) {
 			visitBeforeOrder.push(SimpleTypePath.toString(args.path, args.type));
-
-			const { path, type, visit } = args;
-
-			if (type.kind === "TUPLE") {
-				const els = Visitor.TUPLE.mapIndexedMembers({ type, path, visit: visit.with(args => simpleTypeToString(args.type)) });
-			}
 		},
 		after: undefined,
-		traverse: mapJsonStep
+		traverse: Visitor.mapJsonStep
 	});
 
-	ctx.deepEqual(visitBeforeOrder, [
-		"T: Haystack",
-		"Haystack.hello: { world: string; } & { today: [1, 2, 3]; }",
-		"Haystack.hello~&0~>: { world: string; }",
-		"Haystack.hello~&0~>.world: string",
-		"Haystack.hello~&1~>: { today: [1, 2, 3]; }",
-		"Haystack.hello~&1~>.today: [1, 2, 3]",
-		"Haystack.hello~&1~>.today[0]: 1",
-		"Haystack.hello~&1~>.today[1]: 2",
-		"Haystack.hello~&1~>.today[2]: 3",
-		'Haystack.frog: GenericInterface<{ table: "block"; }, { value: string; }>',
-		"Haystack.frog: GenericInterface",
-		'Haystack.frog.constrained: { table: "block"; }',
-		'Haystack.frog.constrained.table: "block"',
-		"Haystack.frog.defaulted: { value: string; }",
-		"Haystack.frog.defaulted.value: string"
-	]);
+	ctx.snapshot(visitBeforeOrder);
 });

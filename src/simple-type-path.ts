@@ -1,9 +1,4 @@
-import {
-	SimpleType,
-	SimpleTypeFunctionParameter,
-	SimpleTypeMember,
-	SimpleTypeMemberNamed
-} from "./simple-type";
+import { SimpleType, SimpleTypeFunctionParameter, SimpleTypeMember, SimpleTypeMemberNamed } from "./simple-type";
 import { simpleTypeToString } from "./transform/simple-type-to-string";
 
 type SimpleTypePathStepKind =
@@ -175,11 +170,11 @@ export type SimpleTypePathStep =
  * 3. RETURN
  * 4. VARIANT (index 1)
  */
-export type SimpleTypePath = SimpleTypePathStep[];
+export type SimpleTypePath = SimpleTypePathStep[]; // TODO: consider single linked list to save memory?
 
 export const SimpleTypePath = {
 	empty(): SimpleTypePath {
-		return [];
+		return [] as SimpleTypePath;
 	},
 
 	/** @returns true if `path` includes a step from `type`. */
@@ -197,10 +192,7 @@ export const SimpleTypePath = {
 		return path.slice(fromIndex);
 	},
 
-	concat(
-		prefix: SimpleTypePath,
-		suffix: SimpleTypePath | SimpleTypePath[number] | undefined
-	): SimpleTypePath {
+	concat(prefix: SimpleTypePath, suffix: SimpleTypePath | SimpleTypePath[number] | undefined): SimpleTypePath {
 		return suffix ? prefix.concat(suffix) : prefix.concat();
 	},
 

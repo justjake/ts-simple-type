@@ -1,10 +1,17 @@
 import test from "ava";
-import { __String } from "typescript";
-import ts = require("typescript");
 import { inspect } from "util";
-import { getTypescriptModule, SimpleTypeAlias, SimpleTypeGenericArguments, SimpleTypeInterface, SimpleTypeObject, SimpleTypeUnion, toSimpleType } from "../src";
+import {
+	getTypescriptModule,
+	SimpleTypeAlias,
+	SimpleTypeGenericArguments,
+	SimpleTypeInterface,
+	SimpleTypeObject,
+	SimpleTypeUnion,
+	toSimpleType
+} from "../src";
 import { isType } from "../src/utils/ts-util";
-import { ITestFile, programWithVirtualFiles } from "./helpers/analyze-text";
+import { getTestTypes } from "./helpers/get-test-types";
+import ts = require("typescript");
 
 const TEST_TYPES = `
 type ActivityTable = 'activity'
@@ -36,7 +43,10 @@ export type ContentPointer = RecordPointer<'block' | 'collection'>
     `;
 
 test("it adds methods when addMethods is set", ctx => {
-	const { types, typeChecker } = getTestTypes(["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
+	const { types, typeChecker } = getTestTypes(
+		["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"],
+		TEST_TYPES
+	);
 	const simpleType = toSimpleType(types.SimpleAliasExample, typeChecker, {
 		addMethods: true
 	});
@@ -233,7 +243,10 @@ export type NestedGenericAliasInstance = {
 });
 
 test("generic interface handling", ctx => {
-	const { types, typeChecker } = getTestTypes(["GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
+	const { types, typeChecker } = getTestTypes(
+		["GenericInterface", "GenericInterfaceExample"],
+		TEST_TYPES
+	);
 
 	const genericInterfaceSimpleType: SimpleTypeInterface = {
 		name: "GenericInterface",
@@ -284,7 +297,10 @@ test("generic interface handling", ctx => {
 });
 
 test("generic type alias handling", ctx => {
-	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
+	const { types, typeChecker } = getTestTypes(
+		["RecordPointer", "ActivityPointer", "Table"],
+		TEST_TYPES
+	);
 	log(types.ActivityPointer);
 	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);
 	const expectedActivityPointerInstance: SimpleTypeObject = {
@@ -355,51 +371,14 @@ test("generic type alias handling", ctx => {
 	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
 });
 
-function getTestTypes<TypeNames extends string>(
-	typeNames: TypeNames[],
-	source: string
-): {
-	types: Record<TypeNames, ts.Type>;
-	program: ts.Program;
-	typeChecker: ts.TypeChecker;
-} {
-	const testFile: ITestFile = {
-		fileName: "test.ts",
-		text: source
-	};
-	const program = programWithVirtualFiles(testFile, {
-		options: {
-			strict: true
-		}
-	});
-	const [sourceFile] = program.getSourceFiles().filter(f => f.fileName.includes(testFile.fileName));
-	const typeChecker = program.getTypeChecker();
-	const moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile)!;
-	const result = {
-		types: {} as Record<TypeNames, ts.Type>,
-		program,
-		typeChecker
-	};
-
-	for (const name of typeNames) {
-		const symbol = assert(moduleSymbol.exports?.get(name as __String), `${name} symbol`);
-		const type = typeChecker.getDeclaredTypeOfSymbol(symbol);
-		result.types[name] = type;
-	}
-	return result;
-}
-
-function assert<T>(val: T | undefined, msg: string): T {
-	if (val == null) {
-		throw new Error(`Expected value to be defined: ${msg}`);
-	}
-	return val;
-}
-
 function log(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 	const flags = input && typeof input === "object" && isType(input) && debugTypeFlags(input);
-	const asString = input && typeof input === "object" && isType(input) && (input as any).checker.typeToString(input);
+	const asString =
+		input &&
+		typeof input === "object" &&
+		isType(input) &&
+		(input as any).checker.typeToString(input);
 
 	// eslint-disable-next-line no-console
 	console.log(asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)"));

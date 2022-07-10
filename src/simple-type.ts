@@ -43,7 +43,17 @@ export type SimpleTypeKind =
 	| "DATE"
 	| "PROMISE";
 
-export type SimpleTypeModifierKind = "EXPORT" | "AMBIENT" | "PUBLIC" | "PRIVATE" | "PROTECTED" | "STATIC" | "READONLY" | "ABSTRACT" | "ASYNC" | "DEFAULT";
+export type SimpleTypeModifierKind =
+	| "EXPORT"
+	| "AMBIENT"
+	| "PUBLIC"
+	| "PRIVATE"
+	| "PROTECTED"
+	| "STATIC"
+	| "READONLY"
+	| "ABSTRACT"
+	| "ASYNC"
+	| "DEFAULT";
 
 // ##############################
 // Base
@@ -180,6 +190,11 @@ export interface SimpleTypeMember {
 	readonly type: SimpleType;
 	readonly optional?: boolean;
 	readonly modifiers?: SimpleTypeModifierKind[];
+	getTypescript?: () => {
+		memberOfType: ts.Type;
+		symbol: ts.Symbol;
+		checker: ts.TypeChecker;
+	};
 }
 
 export interface SimpleTypeMemberNamed extends SimpleTypeMember {
@@ -383,15 +398,35 @@ const SIMPLE_TYPE_MAP: Record<SimpleTypeKind, "primitive" | "primitive_literal" 
 };
 
 // Primitive, literal
-export type SimpleTypeLiteral = SimpleTypeBigIntLiteral | SimpleTypeBooleanLiteral | SimpleTypeStringLiteral | SimpleTypeNumberLiteral | SimpleTypeESSymbolUnique;
-export const LITERAL_TYPE_KINDS: SimpleTypeKind[] = (Object.keys(SIMPLE_TYPE_MAP) as SimpleTypeKind[]).filter(kind => SIMPLE_TYPE_MAP[kind] === "primitive_literal");
+export type SimpleTypeLiteral =
+	| SimpleTypeBigIntLiteral
+	| SimpleTypeBooleanLiteral
+	| SimpleTypeStringLiteral
+	| SimpleTypeNumberLiteral
+	| SimpleTypeESSymbolUnique;
+export const LITERAL_TYPE_KINDS: SimpleTypeKind[] = (
+	Object.keys(SIMPLE_TYPE_MAP) as SimpleTypeKind[]
+).filter(kind => SIMPLE_TYPE_MAP[kind] === "primitive_literal");
 export function isSimpleTypeLiteral(type: SimpleType): type is SimpleTypeLiteral {
 	return LITERAL_TYPE_KINDS.includes(type.kind);
 }
 
 // Primitive
-export type SimpleTypePrimitive = SimpleTypeLiteral | SimpleTypeString | SimpleTypeNumber | SimpleTypeBoolean | SimpleTypeBigInt | SimpleTypeNull | SimpleTypeUndefined | SimpleTypeESSymbol;
-export const PRIMITIVE_TYPE_KINDS: SimpleTypeKind[] = [...LITERAL_TYPE_KINDS, ...(Object.keys(SIMPLE_TYPE_MAP) as SimpleTypeKind[]).filter(kind => SIMPLE_TYPE_MAP[kind] === "primitive")];
+export type SimpleTypePrimitive =
+	| SimpleTypeLiteral
+	| SimpleTypeString
+	| SimpleTypeNumber
+	| SimpleTypeBoolean
+	| SimpleTypeBigInt
+	| SimpleTypeNull
+	| SimpleTypeUndefined
+	| SimpleTypeESSymbol;
+export const PRIMITIVE_TYPE_KINDS: SimpleTypeKind[] = [
+	...LITERAL_TYPE_KINDS,
+	...(Object.keys(SIMPLE_TYPE_MAP) as SimpleTypeKind[]).filter(
+		kind => SIMPLE_TYPE_MAP[kind] === "primitive"
+	)
+];
 export function isSimpleTypePrimitive(type: SimpleType): type is SimpleTypePrimitive {
 	return PRIMITIVE_TYPE_KINDS.includes(type.kind);
 }
@@ -399,7 +434,14 @@ export function isSimpleTypePrimitive(type: SimpleType): type is SimpleTypePrimi
 // All kinds
 export const SIMPLE_TYPE_KINDS = Object.keys(SIMPLE_TYPE_MAP) as SimpleTypeKind[];
 export function isSimpleType(type: unknown): type is SimpleType {
-	return typeof type === "object" && type != null && "kind" in type && Object.values(SIMPLE_TYPE_KINDS).find((key: SimpleTypeKind) => key === (type as { kind: SimpleTypeKind }).kind) != null;
+	return (
+		typeof type === "object" &&
+		type != null &&
+		"kind" in type &&
+		Object.values(SIMPLE_TYPE_KINDS).find(
+			(key: SimpleTypeKind) => key === (type as { kind: SimpleTypeKind }).kind
+		) != null
+	);
 }
 
 export type SimpleTypeKindMap = {

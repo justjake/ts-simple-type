@@ -1,7 +1,8 @@
 import test from "ava";
 import { SimpleTypePath } from "../src/simple-type-path";
+import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { toSimpleType } from "../src/transform/to-simple-type";
-import { mapOneJsonStep, visitDepthFirst } from "../src/visitor";
+import { mapJsonStep, visitDepthFirst, Visitor } from "../src/visitor";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TYPES = `
@@ -188,9 +189,15 @@ test("visitDepthFirst: JSON traversal", ctx => {
 	visitDepthFirst([], simpleType, {
 		before(args) {
 			visitBeforeOrder.push(SimpleTypePath.toString(args.path, args.type));
+
+			const { path, type, visit } = args;
+
+			if (type.kind === "TUPLE") {
+				const els = Visitor.TUPLE.mapIndexedMembers({ type, path, visit: visit.with(args => simpleTypeToString(args.type)) });
+			}
 		},
 		after: undefined,
-		traverse: mapOneJsonStep
+		traverse: mapJsonStep
 	});
 
 	ctx.deepEqual(visitBeforeOrder, [

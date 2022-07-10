@@ -1,7 +1,7 @@
 import test from "ava";
 import { SimpleTypePath } from "../src/simple-type-path";
 import { toSimpleType } from "../src/transform/to-simple-type";
-import { visitDepthFirst } from "../src/visitor";
+import { mapOneJsonStep, visitDepthFirst } from "../src/visitor";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TYPES = `
@@ -174,4 +174,40 @@ test("visitDepthFirst: makes errors nice", ctx => {
 			message: /Path:.*$/
 		}
 	);
+});
+
+test("visitDepthFirst: JSON traversal", ctx => {
+	const { types, typeChecker } = getTestTypes(["Haystack"], EXAMPLE_TYPES);
+	const simpleType = toSimpleType(types.Haystack, typeChecker, {
+		addMethods: true,
+		cache: new WeakMap()
+	});
+
+	const visitBeforeOrder: string[] = [];
+
+	visitDepthFirst([], simpleType, {
+		before(args) {
+			visitBeforeOrder.push(SimpleTypePath.toString(args.path, args.type));
+		},
+		after: undefined,
+		traverse: mapOneJsonStep
+	});
+
+	ctx.deepEqual(visitBeforeOrder, [
+		"T: Haystack",
+		"Haystack.hello: { world: string; } & { today: [1, 2, 3]; }",
+		"Haystack.hello~&0~>: { world: string; }",
+		"Haystack.hello~&0~>.world: string",
+		"Haystack.hello~&1~>: { today: [1, 2, 3]; }",
+		"Haystack.hello~&1~>.today: [1, 2, 3]",
+		"Haystack.hello~&1~>.today[0]: 1",
+		"Haystack.hello~&1~>.today[1]: 2",
+		"Haystack.hello~&1~>.today[2]: 3",
+		'Haystack.frog: GenericInterface<{ table: "block"; }, { value: string; }>',
+		"Haystack.frog: GenericInterface",
+		'Haystack.frog.constrained: { table: "block"; }',
+		'Haystack.frog.constrained.table: "block"',
+		"Haystack.frog.defaulted: { value: string; }",
+		"Haystack.frog.defaulted.value: string"
+	]);
 });

@@ -51,10 +51,7 @@ function visitInner<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): 
 	}
 }
 
-type SimpleTypePathStepCallable =
-	| SimpleTypePathStepTypeParameter[]
-	| SimpleTypePathStepParameter[]
-	| SimpleTypePathStepReturn;
+type SimpleTypePathStepCallable = SimpleTypePathStepTypeParameter[] | SimpleTypePathStepParameter[] | SimpleTypePathStepReturn;
 type SimpleTypePathStepIndexable = SimpleTypePathStepStringIndex | SimpleTypePathStepNumberIndex;
 type SimpleTypePathStepObjectLike =
 	| SimpleTypePathStepNamedMember[]
@@ -90,13 +87,8 @@ interface SimpleTypeToPathStepMap {
 	CLASS: SimpleTypePathStepObjectLike;
 	FUNCTION: SimpleTypePathStepCallable;
 	METHOD: SimpleTypePathStepCallable;
-	GENERIC_ARGUMENTS:
-		| SimpleTypePathStepGenericArgument[]
-		| SimpleTypePathStepGenericTarget
-		| SimpleTypePathStepAliased;
-	GENERIC_PARAMETER:
-		| SimpleTypePathStepTypeParameterConstraint
-		| SimpleTypePathStepTypeParameterDefault;
+	GENERIC_ARGUMENTS: SimpleTypePathStepGenericArgument[] | SimpleTypePathStepGenericTarget | SimpleTypePathStepAliased;
+	GENERIC_PARAMETER: SimpleTypePathStepTypeParameterConstraint | SimpleTypePathStepTypeParameterDefault;
 	ALIAS: SimpleTypePathStepTypeParameter[] | SimpleTypePathStepAliased;
 	TUPLE: SimpleTypePathStepIndexedMember[];
 	ARRAY: SimpleTypePathStepNumberIndex;
@@ -115,10 +107,7 @@ interface SimpleTypeToPathStepMap {
 interface VisitFnArgs<
 	T,
 	ST extends SimpleType = SimpleType,
-	Step extends SimpleTypePath | SimpleTypePath[number] | undefined =
-		| SimpleTypePath
-		| SimpleTypePath[number]
-		| undefined
+	Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined
 > {
 	type: ST;
 	path: SimpleTypePath;
@@ -126,9 +115,11 @@ interface VisitFnArgs<
 }
 
 type Visitor<T, ST extends SimpleType = SimpleType> = (args: VisitFnArgs<T, ST>) => T;
+
 type GenericVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(
 	args: VisitFnArgs<T, TypeKind, StepKind>
 ) => T | CYCLICAL | undefined;
+
 type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(
 	args: VisitFnArgs<T, TypeKind, StepKind>
 ) => Array<T | CYCLICAL> | undefined;
@@ -136,40 +127,27 @@ type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleType
 type SimpleTypePathStepVisitors = {
 	// TODO: type magic to "fully flatten" these two mapped types together.
 	[K in keyof SimpleTypeToPathStepMap]: {
-		[SK in Extract<SimpleTypeToPathStepMap[K], SimpleTypePathStepBase> as CamelCase<
-			SK["step"]
-		>]: GenericVisitor<SimpleTypeKindMap[K], SK>;
+		[SK in Extract<SimpleTypeToPathStepMap[K], SimpleTypePathStepBase> as CamelCase<SK["step"]>]: GenericVisitor<SimpleTypeKindMap[K], SK>;
 	} &
 		{
-			[SK in Extract<
-				SimpleTypeToPathStepMap[K],
-				Array<any>
-			> as CamelCase<`MAP_${SK[number]["step"]}S`>]: GenericListVisitor<
+			[SK in Extract<SimpleTypeToPathStepMap[K], Array<any>> as CamelCase<`MAP_${SK[number]["step"]}S`>]: GenericListVisitor<
 				SimpleTypeKindMap[K],
 				SK[number]
 			>;
 		};
 };
 
-type CamelCase<S extends string> = S extends `${infer P1}_${infer P2}${infer P3}`
-	? `${Lowercase<P1>}${Uppercase<P2>}${CamelCase<P3>}`
-	: Lowercase<S>;
+type CamelCase<S extends string> = S extends `${infer P1}_${infer P2}${infer P3}` ? `${Lowercase<P1>}${Uppercase<P2>}${CamelCase<P3>}` : Lowercase<S>;
 
 /**
  * TODO: better name
  */
-export const mapOneStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({
-	type,
-	path,
-	visit
-}) => {
+export const mapOneStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({ type, path, visit }) => {
 	if (type.kind in Visitor) {
 		const visitors = Visitor[type.kind as keyof SimpleTypePathStepVisitors];
 		let results: unknown[] = [];
 		for (const [name, _visitor] of Object.entries(visitors)) {
-			const visitor = _visitor as
-				| GenericVisitor<SimpleType, SimpleTypePathStep>
-				| GenericListVisitor<SimpleType, SimpleTypePathStep>;
+			const visitor = _visitor as GenericVisitor<SimpleType, SimpleTypePathStep> | GenericListVisitor<SimpleType, SimpleTypePathStep>;
 			const visited = visitor({ type, path, visit });
 			if (typeof visited === "undefined") {
 				continue;
@@ -186,17 +164,58 @@ export const mapOneStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({
 	}
 };
 
+const array = <T>(...values: Array<T | T[] | undefined>): T[] => values.flatMap(v => (v === undefined ? [] : v));
+
+export const mapOneJsonStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({ type, path, visit }) => {
+	switch (type.kind) {
+		case "ENUM":
+			return Visitor.ENUM.mapVariants({ type, path, visit });
+		case "UNION":
+			return Visitor.UNION.mapVariants({ type, path, visit });
+		case "INTERSECTION":
+			return Visitor.INTERSECTION.mapVariants({ type, path, visit });
+		case "INTERFACE":
+			return array(
+				Visitor.INTERFACE.mapNamedMembers({ type, path, visit }),
+				Visitor.INTERFACE.numberIndex({ type, path, visit }),
+				Visitor.INTERFACE.stringIndex({ type, path, visit })
+			);
+		case "OBJECT":
+			return array(
+				Visitor.OBJECT.mapNamedMembers({ type, path, visit }),
+				Visitor.OBJECT.numberIndex({ type, path, visit }),
+				Visitor.OBJECT.stringIndex({ type, path, visit })
+			);
+		case "CLASS":
+			return array(
+				Visitor.CLASS.mapNamedMembers({ type, path, visit }),
+				Visitor.CLASS.numberIndex({ type, path, visit }),
+				Visitor.CLASS.stringIndex({ type, path, visit })
+			);
+		case "TUPLE":
+			return Visitor.TUPLE.mapIndexedMembers({ type, path, visit });
+		case "ALIAS":
+			return array(Visitor.ALIAS.aliased({ type, path, visit }));
+		case "ARRAY":
+			return array(Visitor.ARRAY.numberIndex({ type, path, visit }));
+		case "GENERIC_ARGUMENTS":
+			return array(Visitor.GENERIC_ARGUMENTS.aliased({ type, path, visit }));
+	}
+};
+
 export function visitDepthFirst(
 	path: SimpleTypePath,
 	type: SimpleType,
 	visitors: {
 		before: Visitor<void> | undefined;
 		after: Visitor<void> | undefined;
+		traverse?: GenericListVisitor<SimpleType, SimpleTypePathStep>;
 	}
 ) {
 	visitInner<void>(path, type, args => {
+		const traverse = visitors.traverse || mapOneStep;
 		visitors.before?.(args);
-		mapOneStep(args);
+		traverse(args);
 		visitors.after?.(args);
 	});
 }
@@ -204,135 +223,76 @@ export function visitDepthFirst(
 export const Visitor: SimpleTypePathStepVisitors = {
 	// TODO: figure out how to de-dupe these thingies
 	ENUM: {
-		mapVariants: ({ visit, type }) =>
-			type.types.map((variant, i) =>
-				visit({ from: type, index: i, step: "VARIANT" }, variant)
-			)
+		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
 	},
 	UNION: {
-		mapVariants: ({ visit, type }) =>
-			type.types.map((variant, i) =>
-				visit({ from: type, index: i, step: "VARIANT" }, variant)
-			)
+		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
 	},
 	INTERSECTION: {
-		mapVariants: ({ visit, type }) =>
-			type.types.map((variant, i) =>
-				visit({ from: type, index: i, step: "VARIANT" }, variant)
-			)
+		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
 	},
 	INTERFACE: {
-		callSignature: ({ visit, type }) =>
-			type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
-		ctorSignature: ({ visit, type }) =>
-			type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
+		callSignature: ({ visit, type }) => type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
+		ctorSignature: ({ visit, type }) => type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
 		mapNamedMembers: ({ visit, type }) =>
-			type.members?.map((member, i) =>
-				visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)
-			),
-		numberIndex: ({ visit, type }) =>
-			type.indexType?.NUMBER &&
-			visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
-		stringIndex: ({ visit, type }) =>
-			type.indexType?.STRING &&
-			visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
+			type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)),
+		numberIndex: ({ visit, type }) => type.indexType?.NUMBER && visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
+		stringIndex: ({ visit, type }) => type.indexType?.STRING && visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param))
 	},
 	OBJECT: {
-		callSignature: ({ visit, type }) =>
-			type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
-		ctorSignature: ({ visit, type }) =>
-			type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
+		callSignature: ({ visit, type }) => type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
+		ctorSignature: ({ visit, type }) => type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
 		mapNamedMembers: ({ visit, type }) =>
-			type.members?.map((member, i) =>
-				visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)
-			),
-		numberIndex: ({ visit, type }) =>
-			type.indexType?.NUMBER &&
-			visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
-		stringIndex: ({ visit, type }) =>
-			type.indexType?.STRING &&
-			visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
+			type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)),
+		numberIndex: ({ visit, type }) => type.indexType?.NUMBER && visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
+		stringIndex: ({ visit, type }) => type.indexType?.STRING && visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param))
 	},
 	CLASS: {
-		callSignature: ({ visit, type }) =>
-			type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
-		ctorSignature: ({ visit, type }) =>
-			type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
+		callSignature: ({ visit, type }) => type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call),
+		ctorSignature: ({ visit, type }) => type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor),
 		mapNamedMembers: ({ visit, type }) =>
-			type.members?.map((member, i) =>
-				visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)
-			),
-		numberIndex: ({ visit, type }) =>
-			type.indexType?.NUMBER &&
-			visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
-		stringIndex: ({ visit, type }) =>
-			type.indexType?.STRING &&
-			visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
+			type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)),
+		numberIndex: ({ visit, type }) => type.indexType?.NUMBER && visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER),
+		stringIndex: ({ visit, type }) => type.indexType?.STRING && visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param))
 	},
 	FUNCTION: {
 		mapParameters: ({ visit, type }) =>
-			type.parameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)
-			),
+			type.parameters?.map((param, i) => visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			),
-		return: ({ visit, type }) =>
-			type.returnType && visit({ from: type, step: "RETURN" }, type.returnType)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)),
+		return: ({ visit, type }) => type.returnType && visit({ from: type, step: "RETURN" }, type.returnType)
 	},
 	METHOD: {
 		mapParameters: ({ visit, type }) =>
-			type.parameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)
-			),
+			type.parameters?.map((param, i) => visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			),
-		return: ({ visit, type }) =>
-			type.returnType && visit({ from: type, step: "RETURN" }, type.returnType)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)),
+		return: ({ visit, type }) => type.returnType && visit({ from: type, step: "RETURN" }, type.returnType)
 	},
 	GENERIC_ARGUMENTS: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.instantiated),
-		genericTarget: ({ visit, type }) =>
-			visit({ from: type, step: "GENERIC_TARGET" }, type.target),
+		genericTarget: ({ visit, type }) => visit({ from: type, step: "GENERIC_TARGET" }, type.target),
 		mapGenericArguments: ({ visit, type }) =>
-			type.typeArguments.map((arg, i) =>
-				visit({ from: type, index: i, step: "GENERIC_ARGUMENT", name: arg.name }, arg)
-			)
+			type.typeArguments.map((arg, i) => visit({ from: type, index: i, step: "GENERIC_ARGUMENT", name: arg.name }, arg))
 	},
 	GENERIC_PARAMETER: {
-		typeParameterConstraint: ({ visit, type }) =>
-			type.constraint &&
-			visit({ from: type, step: "TYPE_PARAMETER_CONSTRAINT" }, type.constraint),
-		typeParameterDefault: ({ visit, type }) =>
-			type.default && visit({ from: type, step: "TYPE_PARAMETER_DEFAULT" }, type.default)
+		typeParameterConstraint: ({ visit, type }) => type.constraint && visit({ from: type, step: "TYPE_PARAMETER_CONSTRAINT" }, type.constraint),
+		typeParameterDefault: ({ visit, type }) => type.default && visit({ from: type, step: "TYPE_PARAMETER_DEFAULT" }, type.default)
 	},
 	TUPLE: {
 		mapIndexedMembers: ({ visit, type }) =>
-			type.members?.map((member, i) =>
-				visit({ from: type, index: i, step: "INDEXED_MEMBER", member }, member.type)
-			)
+			type.members?.map((member, i) => visit({ from: type, index: i, step: "INDEXED_MEMBER", member }, member.type))
 	},
 	ALIAS: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.target),
 		mapTypeParameters: ({ visit, type }) =>
-			type.typeParameters?.map((param, i) =>
-				visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)
-			)
+			type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param))
 	},
 	ARRAY: {
 		numberIndex: ({ visit, type }) => visit({ from: type, step: "NUMBER_INDEX" }, type.type)

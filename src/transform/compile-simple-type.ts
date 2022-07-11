@@ -4,17 +4,7 @@
  */
 
 import ts = require("typescript");
-import {
-	SimpleType,
-	SimpleTypeESSymbol,
-	SimpleTypeESSymbolUnique,
-	SimpleTypeFunctionParameter,
-	SimpleTypeLiteral,
-	SimpleTypeMember,
-	SimpleTypeMemberNamed,
-	SimpleTypeNumber,
-	SimpleTypeString
-} from "../simple-type";
+import { SimpleType } from "../simple-type";
 
 interface Emitted<T> {
 	name: string;
@@ -33,10 +23,7 @@ interface Reference<T> {
 }
 
 interface CompilerAPI<T> {
-	compile(
-		simpleType: SimpleType,
-		path: SimpleTypePath | SimpleTypePath[number] | undefined
-	): Emitted<T>;
+	compile(simpleType: SimpleType, path: SimpleTypePath | SimpleTypePath[number] | undefined): Emitted<T>;
 	emit(emitted: Emitted<T>): Emitted<T>;
 }
 

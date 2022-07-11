@@ -27,27 +27,41 @@ export class Cyclical {
 		return Boolean(value && value instanceof Cyclical);
 	}
 
+	static preventCycles<T>(visitor: Visitor<T>): Visitor<T | Cyclical> {
+		const preventCyclesVisitor: Visitor<T | Cyclical> = args => {
+			const cycle = SimpleTypePath.getSubpathFrom(args.path, args.type);
+			if (cycle) {
+				return new Cyclical(cycle);
+			}
+			return visitor(args as never);
+		};
+		return preventCyclesVisitor;
+	}
+
 	constructor(public readonly cycle: SimpleTypePath) {}
 }
 
 interface VisitChild<T, Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined> {
 	/** Visit the given type with the current visitor */
-	(step: Step, type: SimpleType): T | Cyclical;
+	(step: Step, type: SimpleType): T;
 	/** Visit the given type with a different visitor */
-	<R>(step: Step, type: SimpleType, fn: Visitor<R>): R | Cyclical;
-	/** Create a new recursive function with a different visitor */
+	<R>(step: Step, type: SimpleType, fn: Visitor<R>): R;
+	/**
+	 * Create a new recursive function with a different visitor.
+	 * @warning Currently type inference in GenericVisitor doesn't seem to work for this use-case.
+	 */
 	with<R>(fn: Visitor<R>): VisitChild<R>;
 }
 
-interface VisitFnArgs<T, ST extends SimpleType = SimpleType, Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined> {
+export interface VisitFnArgs<T, ST extends SimpleType = SimpleType, Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined> {
 	type: ST;
 	path: SimpleTypePath;
 	visit: VisitChild<T, Step>;
 }
 
-type Visitor<T, ST extends SimpleType = SimpleType> = (args: VisitFnArgs<T, ST>) => T;
-type GenericVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => T | Cyclical | undefined;
-type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => Array<T | Cyclical> | undefined;
+export type Visitor<T, ST extends SimpleType = SimpleType> = (args: VisitFnArgs<T, ST>) => T;
+export type GenericVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => T | undefined;
+export type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => Array<T>;
 
 function makeVisitChildFn<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): VisitChild<T> {
 	const visit: VisitChild<T> = function visit(step: SimpleTypePath | SimpleTypePath[number] | undefined, childType: SimpleType, childFn?: Visitor<T>) {
@@ -63,14 +77,9 @@ const ALREADY_ANNOTATED_ERROR_WITH_PATH = new WeakSet<Error>();
 /**
  * Perform a custom recursive walk of `type` by calling `fn` it.
  * `fn` can recurse by calling its `args.visit(path, otherType)`.
- * @returns result of `fn`, or {@link Cyclical} if `type` already occurs in `path`.
+ * @returns result of `fn`
  */
-export function walkRecursive<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): T | Cyclical {
-	const cycle = SimpleTypePath.getSubpathFrom(path, type);
-	if (cycle) {
-		return new Cyclical(cycle);
-	}
-
+export function walkRecursive<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): T {
 	const args: VisitFnArgs<T> = {
 		path,
 		type,
@@ -145,7 +154,7 @@ interface SimpleTypeToPathStepMap {
 	// ANY: never;
 	// UNKNOWN: never;
 	ENUM: SimpleTypePathStepVariant[];
-	// ENUM_MEMBER: never;
+	ENUM_MEMBER: SimpleTypePathStepAliased;
 	// NON_PRIMITIVE: never;
 	UNION: SimpleTypePathStepVariant[];
 	INTERSECTION: SimpleTypePathStepVariant[];
@@ -183,9 +192,9 @@ type MethodVisitors = SimpleTypePathStepVisitors["METHOD"];
 
 class CallableVisitors implements FunctionVisitors, MethodVisitors {
 	mapTypeParameters: FunctionVisitors["mapTypeParameters"] & MethodVisitors["mapTypeParameters"] = ({ visit, type }) =>
-		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param));
+		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? [];
 	mapParameters: FunctionVisitors["mapParameters"] & MethodVisitors["mapParameters"] = ({ visit, type }) =>
-		type.parameters?.map((param, i) => visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type));
+		type.parameters?.map((param, i) => visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)) ?? [];
 	return: FunctionVisitors["return"] & MethodVisitors["return"] = ({ visit, type }) => type.returnType && visit({ from: type, step: "RETURN" }, type.returnType);
 }
 
@@ -194,7 +203,7 @@ type ObjectVisitors = SimpleTypePathStepVisitors["OBJECT"];
 type ClassVisitors = SimpleTypePathStepVisitors["CLASS"];
 class ObjectLikeVisitors implements InterfaceVisitors, ObjectVisitors, ClassVisitors {
 	mapTypeParameters: InterfaceVisitors["mapTypeParameters"] & ObjectVisitors["mapTypeParameters"] & ClassVisitors["mapTypeParameters"] = ({ visit, type }) =>
-		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param));
+		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? [];
 
 	callSignature: InterfaceVisitors["callSignature"] & ObjectVisitors["callSignature"] & ClassVisitors["callSignature"] = ({ visit, type }) =>
 		type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call);
@@ -202,7 +211,7 @@ class ObjectLikeVisitors implements InterfaceVisitors, ObjectVisitors, ClassVisi
 		type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor);
 
 	mapNamedMembers: InterfaceVisitors["mapNamedMembers"] & ObjectVisitors["mapNamedMembers"] & ClassVisitors["mapNamedMembers"] = ({ visit, type }) =>
-		type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type));
+		type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)) ?? [];
 	numberIndex: InterfaceVisitors["numberIndex"] & ObjectVisitors["numberIndex"] & ClassVisitors["numberIndex"] = ({ visit, type }) =>
 		type.indexType?.NUMBER && visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER);
 	stringIndex: InterfaceVisitors["stringIndex"] & ObjectVisitors["stringIndex"] & ClassVisitors["stringIndex"] = ({ visit, type }) =>
@@ -239,13 +248,16 @@ const KindVisitors: SimpleTypePathStepVisitors = {
 	},
 	ALIAS: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.target),
-		mapTypeParameters: ({ visit, type }) => type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param))
+		mapTypeParameters: ({ visit, type }) => type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? []
 	},
 	ARRAY: {
 		numberIndex: ({ visit, type }) => visit({ from: type, step: "NUMBER_INDEX" }, type.type)
 	},
 	PROMISE: {
 		awaited: ({ visit, type }) => visit({ from: type, step: "AWAITED" }, type.type)
+	},
+	ENUM_MEMBER: {
+		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.type)
 	}
 };
 
@@ -271,7 +283,7 @@ export const mapAnyStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({
 		}
 		return results as any[];
 	} else {
-		return undefined;
+		return [];
 	}
 };
 
@@ -300,6 +312,8 @@ const mapJsonStep: GenericListVisitor<SimpleType, SimpleTypePathStep> = ({ type,
 		case "GENERIC_ARGUMENTS":
 			return array(Visitor.GENERIC_ARGUMENTS.aliased({ type, path, visit }));
 	}
+
+	return [];
 };
 
 /**

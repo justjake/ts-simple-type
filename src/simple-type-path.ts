@@ -196,6 +196,10 @@ export const SimpleTypePath = {
 		return suffix ? prefix.concat(suffix) : prefix.concat();
 	},
 
+	last(path: SimpleTypePath): SimpleTypePathStep | undefined {
+		return path[path.length - 1];
+	},
+
 	toString(path: SimpleTypePath, target?: SimpleType): string {
 		const arrow = (name: string) => `~${name}~>`;
 		const typeName = (type: SimpleType) => type.name ?? simpleTypeToString(type);
@@ -295,6 +299,6 @@ interface Foo<A extends Map<string, string>> {
 // path to Map<string, string>
 // Foo<A extends>
 
-function unreachable(x: never): never {
+export function unreachable(x: never): never {
 	throw new Error(`Should be unreachable, instead exists: ${JSON.stringify(x)}`);
 }

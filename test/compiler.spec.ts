@@ -10,6 +10,7 @@ import {
 	SimpleTypeInterface,
 	SimpleTypePath,
 	SimpleTypePathStep,
+	SimpleTypePathStepNamedMember,
 	toSimpleType,
 	ToSimpleTypeOptions,
 	unreachable,
@@ -64,9 +65,9 @@ class SimpleTypeCompiler {
 	};
 	private names = new Map<string, number>();
 
-	compileType(type: SimpleType | ts.Type, visitor: Visitor<SimpleTypeCompilerNode>): SimpleTypeCompilerNode {
+	compileType(type: SimpleType | ts.Type, visitor: Visitor<SimpleTypeCompilerNode>, path: SimpleTypePath = SimpleTypePath.empty()): SimpleTypeCompilerNode {
 		const simpleType = this.toSimpleType(type);
-		const result = walkRecursive<SimpleTypeCompilerNode>(SimpleTypePath.empty(), simpleType, args => {
+		const result = walkRecursive<SimpleTypeCompilerNode>(path, simpleType, args => {
 			if (this.compileCache.has(args.type)) {
 				return this.compileCache.get(args.type)!;
 			}
@@ -213,7 +214,8 @@ test("Compiler example: compile to Python", ctx => {
 	 *
 	 */
 	const indent = Indent.fourSpaces();
-	compiler.compileType(types.Document, ({ type, path, visit }: VisitFnArgs<SimpleTypeCompilerNode>) => {
+	const declarations: SimpleTypeCompilerNode[] = [];
+	const compileToPython: Visitor<SimpleTypeCompilerNode> = ({ type, path, visit }: VisitFnArgs<SimpleTypeCompilerNode>) => {
 		const builder = compiler.nodeBuilder(type, path);
 		const step = SimpleTypePath.last(path);
 
@@ -276,8 +278,20 @@ test("Compiler example: compile to Python", ctx => {
 				// TODO: ugly hack
 				const type2 = type as SimpleTypeInterface;
 				/// blarg...
-				const members = indent.withLevel(indent.level + 1, () => Visitor[type2.kind].mapNamedMembers({ path, type: type2, visit }));
-				return builder.node([`@dataclass\nclass ${name}:\n`, members.join("\n") ?? "pass"]);
+
+				const members = Visitor[type2.kind].mapNamedMembers({
+					path,
+					type: type2,
+					visit: visit.with(({ type, path }) => {
+						const builder = compiler.nodeBuilder(type, path);
+						const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
+						const member = step.member;
+						return builder.node(`    ${member.name}: ${compiler.compileType(type, compileToPython, path)}`).doNotCache();
+					})
+				});
+				const declaration = builder.node([`@dataclass\nclass ${name}:\n`, members.join("\n") ?? "pass"]);
+				declarations.push(declaration);
+				return builder.node(name);
 			}
 
 			case "ENUM": {
@@ -321,5 +335,8 @@ test("Compiler example: compile to Python", ctx => {
 			default:
 				unreachable(type);
 		}
-	});
+	};
+	const compiledType = compiler.compileType(types.Document, compileToPython);
+	const program = compiler.newNode(compiler.toSimpleType(types.Document), [], [...declarations, compiledType]).join("\n\n");
+	ctx.snapshot(program.toString());
 });

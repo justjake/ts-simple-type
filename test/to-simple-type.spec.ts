@@ -2,10 +2,13 @@ import test from "ava";
 import { inspect } from "util";
 import {
 	getTypescriptModule,
+	SimpleType,
 	SimpleTypeAlias,
+	SimpleTypeArray,
 	SimpleTypeGenericArguments,
 	SimpleTypeInterface,
 	SimpleTypeObject,
+	SimpleTypeString,
 	SimpleTypeUnion,
 	toSimpleType
 } from "../src";
@@ -43,10 +46,7 @@ export type ContentPointer = RecordPointer<'block' | 'collection'>
     `;
 
 test("it adds methods when addMethods is set", ctx => {
-	const { types, typeChecker } = getTestTypes(
-		["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"],
-		TEST_TYPES
-	);
+	const { types, typeChecker } = getTestTypes(["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
 	const simpleType = toSimpleType(types.SimpleAliasExample, typeChecker, {
 		addMethods: true
 	});
@@ -243,10 +243,7 @@ export type NestedGenericAliasInstance = {
 });
 
 test("generic interface handling", ctx => {
-	const { types, typeChecker } = getTestTypes(
-		["GenericInterface", "GenericInterfaceExample"],
-		TEST_TYPES
-	);
+	const { types, typeChecker } = getTestTypes(["GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
 
 	const genericInterfaceSimpleType: SimpleTypeInterface = {
 		name: "GenericInterface",
@@ -297,11 +294,7 @@ test("generic interface handling", ctx => {
 });
 
 test("generic type alias handling", ctx => {
-	const { types, typeChecker } = getTestTypes(
-		["RecordPointer", "ActivityPointer", "Table"],
-		TEST_TYPES
-	);
-	log(types.ActivityPointer);
+	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
 	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);
 	const expectedActivityPointerInstance: SimpleTypeObject = {
 		kind: "OBJECT",
@@ -371,17 +364,66 @@ test("generic type alias handling", ctx => {
 	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
 });
 
-function log(input: unknown, d = 3) {
+const stringSimpleType: SimpleTypeString = {
+	kind: "STRING"
+};
+const arrayOfStringSimpleType: SimpleTypeArray = {
+	name: "Array",
+	kind: "ARRAY",
+	type: stringSimpleType
+};
+
+testExpectedTypes(
+	"Arrays",
+	{
+		ArrayOfString: arrayOfStringSimpleType,
+		ArrayOfArrayOfString: {
+			kind: "ARRAY",
+			name: "Array",
+			type: arrayOfStringSimpleType
+		},
+		ArrayOfStringLong: arrayOfStringSimpleType,
+		ArrayOfArrayOfStringLong: {
+			kind: "ARRAY",
+			name: "Array",
+			type: arrayOfStringSimpleType
+		}
+	},
+	`
+export type ArrayOfString = string[];	
+export type ArrayOfArrayOfString = string[][];
+export type ArrayOfStringLong = Array<string>;
+export type ArrayOfArrayOfStringLong = Array<Array<string>>;
+	`
+);
+
+function testExpectedTypes<ExportedTypeName extends string>(prefix: string, expectations: Record<ExportedTypeName, SimpleType | (() => SimpleType)>, typescriptText: string) {
+	const typeNames = Object.keys(expectations) as ExportedTypeName[];
+	for (const typeName of typeNames) {
+		test(`${prefix}: ${typeName}`, ctx => {
+			const { types, typeChecker } = getTestTypes(typeNames, typescriptText);
+			const simpleType = toSimpleType(types[typeName], typeChecker);
+			const expected = expectations[typeName];
+			try {
+				ctx.deepEqual(simpleType, typeof expected === "function" ? expected() : expected, debugTypeString(types[typeName])[2]);
+			} catch (error) {
+				log(types[typeName]);
+				throw error;
+			}
+		});
+	}
+}
+
+function debugTypeString(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 	const flags = input && typeof input === "object" && isType(input) && debugTypeFlags(input);
-	const asString =
-		input &&
-		typeof input === "object" &&
-		isType(input) &&
-		(input as any).checker.typeToString(input);
+	const asString = input && typeof input === "object" && isType(input) && (input as any).checker.typeToString(input);
+	return [asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)")];
+}
 
+function log(input: unknown, d = 3) {
 	// eslint-disable-next-line no-console
-	console.log(asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)"));
+	console.log(...debugTypeString(input, d));
 }
 
 function debugTypeFlags(type: ts.Type) {

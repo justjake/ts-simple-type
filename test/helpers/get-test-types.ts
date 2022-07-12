@@ -14,13 +14,12 @@ export function getTestTypes<TypeNames extends string>(
 		text: source
 	};
 	const program = programWithVirtualFiles(testFile, {
+		includeLib: true,
 		options: {
 			strict: true
 		}
 	});
-	const [sourceFile] = program
-		.getSourceFiles()
-		.filter(f => f.fileName.includes(testFile.fileName));
+	const [sourceFile] = program.getSourceFiles().filter(f => f.fileName.includes(testFile.fileName));
 	const typeChecker = program.getTypeChecker();
 	const moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile)!;
 	const result = {

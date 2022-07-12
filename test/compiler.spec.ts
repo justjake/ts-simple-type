@@ -1,6 +1,18 @@
 import test from "ava";
-import { isSimpleTypeLiteral, SimpleTypeFunction, SimpleTypeInterface, SimpleTypePath, SimpleTypePathStepNamedMember, unreachable, VisitFnArgs, Visitor } from "../src";
+import {
+	isSimpleTypeLiteral,
+	SimpleTypeEnumMember,
+	SimpleTypeFunction,
+	SimpleTypeInterface,
+	SimpleTypeKind,
+	SimpleTypePath,
+	SimpleTypePathStepNamedMember,
+	unreachable,
+	VisitFnArgs,
+	Visitor
+} from "../src";
 import { SimpleTypeCompiler, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
+import { toNullableSimpleType } from "../src/transform/inspect-simple-type";
 import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { getTestTypes } from "./helpers/get-test-types";
 
@@ -26,11 +38,13 @@ export interface Table {
   header: string[]
   rows: string[][]
 	parent: RecordPointer<'block'>
+	rect?: Rect
 }
 
 export interface Text {
   plain: string
   annotations: Annotation[]
+	rect?: Rect
 }
 
 export interface Annotation {
@@ -39,6 +53,18 @@ export interface Annotation {
   end: number
   data: unknown
 }
+
+type Position = {
+	x: number,
+	y: number
+}
+
+type Dimension = {
+	width: number,
+	height: number
+}
+
+type Rect = Position & Dimension
 
 export interface Document {
 	parent: RecordPointer
@@ -72,17 +98,16 @@ test("Compiler example: compile to Python", ctx => {
 	const declarations: SimpleTypeCompilerNode[] = [];
 	const compileToPython: Visitor<SimpleTypeCompilerNode> = ({ type, path, visit }: VisitFnArgs<SimpleTypeCompilerNode>) => {
 		const builder = compiler.nodeBuilder(type, path);
-		const step = SimpleTypePath.last(path);
+
+		if (type.error) {
+			throw new Error(`SimpleType ${type.kind} has error: ${type.error}`);
+		}
 
 		if (isSimpleTypeLiteral(type)) {
 			if (typeof type.value === "boolean") {
 				return type.value ? builder.node("True") : builder.node("False");
 			}
 			return builder.node(`Literal[${JSON.stringify(type.value)}]`);
-		}
-
-		if (type.error) {
-			throw new Error(`SimpleType ${type.kind} has error: ${type.error}`);
 		}
 
 		switch (type.kind) {
@@ -114,11 +139,19 @@ test("Compiler example: compile to Python", ctx => {
 				return mustBeDefined(Visitor.GENERIC_ARGUMENTS.aliased({ path, type, visit }));
 
 			// Algebraic types
-			case "UNION":
-				return builder.node([`Union[`, builder.node(Visitor.UNION.mapVariants({ path, type, visit }) ?? []).join(", "), `]`]);
+			case "UNION": {
+				const nullable = toNullableSimpleType(type);
+				if (nullable.kind === "NULLABLE" && nullable.type.kind !== "NEVER") {
+					return builder.node(["Optional[", visit(undefined, nullable.type), "]"]);
+				} else {
+					return builder.node([`Union[`, builder.node(Visitor.UNION.mapVariants({ path, type, visit })).join(", "), `]`]);
+				}
+			}
 			case "INTERSECTION":
-				// TODO: python doesn't have intersection types
-				return builder.node([`Intersection[`, builder.node(Visitor.INTERSECTION.mapVariants({ path, type, visit })).join(", "), `]`]);
+				if (!type.intersected) {
+					throw new Error(`Cannot convert to Python because python has no intersection concept`);
+				}
+				return visit(undefined, type.intersected);
 
 			// List types
 			case "ARRAY":
@@ -156,8 +189,15 @@ test("Compiler example: compile to Python", ctx => {
 					path,
 					type,
 					visit: visit.with(({ type, path }) => {
+						if (type.kind !== "ENUM_MEMBER") {
+							throw new Error(`Non ENUM_MEMBER in ENUM`);
+						}
+						if (!isSimpleTypeLiteral(type.type)) {
+							throw new Error(`Non-literal ENUM_MEMBER type: ${simpleTypeToString(type.type)}`);
+						}
+
 						const builder = compiler.nodeBuilder(type, path);
-						return builder.node(["    ", compiler.compileType(type, compileToPython, path)]).doNotCache();
+						return builder.node([`    ${type.name} = `, JSON.stringify(type.type.value)]);
 					})
 				});
 				const declaration = builder.node([`class ${name}(Enum):\n`, builder.node(members).join("\n")]);
@@ -166,17 +206,8 @@ test("Compiler example: compile to Python", ctx => {
 			}
 
 			case "ENUM_MEMBER": {
-				const isInsideOwnEnum = step?.step === "VARIANT" && step.from.kind === "ENUM" && step.from.types.includes(type);
-				if (!isInsideOwnEnum) {
-					throw new Error(`TODO: enum references!`);
-				}
-
-				if (!isSimpleTypeLiteral(type.type)) {
-					throw new Error(`Non-literal enum member type: ${simpleTypeToString(type.type)}`);
-				}
-
-				const enumValue = type.type.value;
-				return builder.node([`    ${type.name} = `, compiler.newNode(type.type, path, JSON.stringify(enumValue))]).doNotCache();
+				// TODO: ensure this `fullName` matches the actual name of the Enum class declaration.
+				return builder.node(type.fullName);
 			}
 
 			case "METHOD":

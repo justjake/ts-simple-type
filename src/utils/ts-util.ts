@@ -324,3 +324,39 @@ interface SymbolWalker {
 		visitedSymbols: readonly ts.Symbol[];
 	};
 }
+
+/**
+ * Find the discriminant property symbols of a union type.
+ * If the union has no discriminant, returns undefined.
+ *
+ * @see https://github.com/microsoft/TypeScript/blob/main/src/compiler/checker.ts `findDiscriminantProperties`, `isDiscriminantProperty`
+ */
+export function getDiscriminantPropertiesOfType(type: ts.UnionType): ts.Symbol[] | undefined {
+	/** Non-exported type copied from Typescript compiler internals. */
+	enum CheckFlags {
+		SyntheticProperty = 1 << 1, // Property in union or intersection type
+		HasNonUniformType = 1 << 6, // Synthetic property with non-uniform type in constituents
+		HasLiteralType = 1 << 7, // Synthetic property with at least one literal type in constituents
+		Discriminant = HasNonUniformType | HasLiteralType
+	}
+
+	function isDiscriminantProperty(property: ts.Symbol) {
+		if ("isDiscriminantProperty" in property && (property as typeof property & { isDiscriminantProperty?: boolean }).isDiscriminantProperty) {
+			return true;
+		}
+
+		if ("checkFlags" in property) {
+			const checkFlags = (property as typeof property & { checkFlags: CheckFlags }).checkFlags;
+			if (checkFlags & CheckFlags.SyntheticProperty && (checkFlags & CheckFlags.Discriminant) === CheckFlags.Discriminant) {
+				// TODO: Exclude if the property is generic.
+				// Too difficult to extract from Typescript source.
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	const discriminants = type.getProperties().filter(isDiscriminantProperty);
+	return discriminants.length ? discriminants : undefined;
+}

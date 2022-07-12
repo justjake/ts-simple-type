@@ -45,6 +45,7 @@ export interface Text {
   plain: string
   annotations: Annotation[]
 	rect?: Rect
+	toString(): string
 }
 
 export interface Annotation {
@@ -57,11 +58,13 @@ export interface Annotation {
 type Position = {
 	x: number,
 	y: number
+	move(dx: number, dy: number): void
 }
 
 type Dimension = {
 	width: number,
 	height: number
+	resize(width: number, height: number): void
 }
 
 type Rect = Position & Dimension
@@ -164,9 +167,8 @@ test("Compiler example: compile to Python", ctx => {
 			case "CLASS":
 			case "OBJECT": {
 				const name = compiler.getUniqueName(type);
-				// TODO: ugly hack
+				// TODO: remove need for ugly hack by normalizing Visitor interface.
 				const type2 = type as SimpleTypeInterface;
-				/// blarg...
 
 				const members = Visitor[type2.kind].mapNamedMembers({
 					path,
@@ -175,7 +177,7 @@ test("Compiler example: compile to Python", ctx => {
 						const builder = compiler.nodeBuilder(type, path);
 						const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
 						const member = step.member;
-						return builder.node([`    ${member.name}: `, compiler.compileType(type, compileToPython, path)]).doNotCache();
+						return builder.node([`    ${member.name}: `, compiler.compileType(type, compileToPython, path)]);
 					})
 				});
 				const declaration = builder.node([`@dataclass\nclass ${name}:\n`, members.join("\n") ?? "pass"]);
@@ -185,6 +187,10 @@ test("Compiler example: compile to Python", ctx => {
 
 			case "ENUM": {
 				const name = compiler.getUniqueName(type);
+				if (name !== type.name) {
+					// eslint-disable-next-line no-console
+					console.warn(`Warning: Enum name ${type.name} does not match class name ${name}; enum type will be incorrect.`);
+				}
 				const members = Visitor.ENUM.mapVariants<SimpleTypeCompilerNode>({
 					path,
 					type,
@@ -206,7 +212,8 @@ test("Compiler example: compile to Python", ctx => {
 			}
 
 			case "ENUM_MEMBER": {
-				// TODO: ensure this `fullName` matches the actual name of the Enum class declaration.
+				// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be
+				//       renamed by `uniqueName`.
 				return builder.node(type.fullName);
 			}
 
@@ -216,8 +223,8 @@ test("Compiler example: compile to Python", ctx => {
 				return builder.node([
 					`Callable[[`,
 					builder.node(Visitor[type2.kind].mapParameters({ path, type: type2, visit })).join(", "),
-					`]`,
-					Visitor.FUNCTION.return({ path, type: type2, visit }) ?? "Any",
+					`], `,
+					Visitor.FUNCTION.return({ path, type: type2, visit }) ?? "None",
 					`]`
 				]);
 			}

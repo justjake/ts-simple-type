@@ -202,7 +202,13 @@ export const SimpleTypePath = {
 
 	toString(path: SimpleTypePath, target?: SimpleType): string {
 		const arrow = (name: string) => `~${name}~>`;
-		const typeName = (type: SimpleType) => type.name ?? simpleTypeToString(type);
+		const typeName = (type: SimpleType) => {
+			try {
+				return type.name ?? simpleTypeToString(type);
+			} catch (error) {
+				return `(Error converting type to string: ${error})`;
+			}
+		};
 
 		const parts: string[] = [];
 		if (path.length === 0) {

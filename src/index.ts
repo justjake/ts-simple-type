@@ -12,6 +12,7 @@ export * from "./is-assignable/is-assignable-to-simple-type-kind";
 export * from "./transform/to-simple-type";
 export * from "./transform/type-to-string";
 export * from "./transform/serialize-simple-type";
+export * from "./transform/compile-simple-type";
 
 export * from "./utils/validate-type";
 

@@ -1,5 +1,5 @@
 import test from "ava";
-import { SourceNode } from "source-map";
+import { SourceMapGenerator, SourceNode } from "source-map";
 import type * as ts from "typescript";
 import {
 	Cyclical,
@@ -22,10 +22,27 @@ import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TS = `
+type DBTable = 
+	| 'block'
+	| 'collection'
+	| 'space'
+
+type RecordPointer<T extends DBTable = DBTable> = T extends 'space' ?
+	{ table: T; id: string } :
+	{ table: T; id: string; spaceId: string }
+
+enum AnnotationType {
+	Bold,
+	Italic,
+	Underline,
+	Strike,
+	Code
+}
 
 export interface Table {
   header: string[]
   rows: string[][]
+	parent: RecordPointer<'block'>
 }
 
 export interface Text {
@@ -34,13 +51,14 @@ export interface Text {
 }
 
 export interface Annotation {
-  type: string
+  type: AnnotationType
   start: number
   end: number
   data: unknown
 }
 
 export interface Document {
+	parent: RecordPointer
   title: string
   author: string
   body: Array<Text | Table>
@@ -58,6 +76,7 @@ type Chunks = Array<string | SourceNode> | SourceNode | string;
 class SimpleTypeCompiler {
 	constructor(public readonly checker: ts.TypeChecker) {}
 
+	private sourceTextCache = new Map<string, string>();
 	private compileCache = new WeakMap<SimpleType, SimpleTypeCompilerNode>();
 	private toSimpleTypeOptions: ToSimpleTypeOptions = {
 		addMethods: true,
@@ -134,6 +153,7 @@ class SimpleTypeCompiler {
 
 		const node = decl[0];
 		const sourceFile = node.getSourceFile();
+		this.sourceTextCache.set(sourceFile.fileName, sourceFile.text);
 		const ts2 = getTypescriptModule();
 		const loc = ts2.getLineAndCharacterOfPosition(sourceFile, node.getStart());
 		return {
@@ -141,6 +161,12 @@ class SimpleTypeCompiler {
 			line: loc.line,
 			source: sourceFile.fileName
 		};
+	}
+
+	setSourceContent(mapGenerator: SourceMapGenerator) {
+		for (const [fileName, text] of this.sourceTextCache) {
+			mapGenerator.setSourceContent(fileName, text);
+		}
 	}
 }
 
@@ -223,7 +249,7 @@ test("Compiler example: compile to Python", ctx => {
 			if (typeof type.value === "boolean") {
 				return type.value ? builder.node("True") : builder.node("False");
 			}
-			return builder.node(`Literal[${type.value}]`);
+			return builder.node(`Literal[${JSON.stringify(type.value)}]`);
 		}
 
 		if (type.error) {
@@ -286,7 +312,7 @@ test("Compiler example: compile to Python", ctx => {
 						const builder = compiler.nodeBuilder(type, path);
 						const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
 						const member = step.member;
-						return builder.node(`    ${member.name}: ${compiler.compileType(type, compileToPython, path)}`).doNotCache();
+						return builder.node([`    ${member.name}: `, compiler.compileType(type, compileToPython, path)]).doNotCache();
 					})
 				});
 				const declaration = builder.node([`@dataclass\nclass ${name}:\n`, members.join("\n") ?? "pass"]);
@@ -296,8 +322,17 @@ test("Compiler example: compile to Python", ctx => {
 
 			case "ENUM": {
 				const name = compiler.getUniqueName(type);
-				const members = indent.withLevel(indent.level + 1, () => Visitor.ENUM.mapVariants({ path, type, visit }));
-				return builder.node([`class ${name}(Enum):\n`, builder.node(members).join("\n") ?? "pass"]);
+				const members = Visitor.ENUM.mapVariants<SimpleTypeCompilerNode>({
+					path,
+					type,
+					visit: visit.with(({ type, path }) => {
+						const builder = compiler.nodeBuilder(type, path);
+						return builder.node(["    ", compiler.compileType(type, compileToPython, path)]).doNotCache();
+					})
+				});
+				const declaration = builder.node([`class ${name}(Enum):\n`, builder.node(members).join("\n")]);
+				declarations.push(declaration);
+				return builder.node(name);
 			}
 
 			case "ENUM_MEMBER": {
@@ -338,5 +373,7 @@ test("Compiler example: compile to Python", ctx => {
 	};
 	const compiledType = compiler.compileType(types.Document, compileToPython);
 	const program = compiler.newNode(compiler.toSimpleType(types.Document), [], [...declarations, compiledType]).join("\n\n");
-	ctx.snapshot(program.toString());
+	const withSourceMap = program.toStringWithSourceMap();
+	compiler.setSourceContent(withSourceMap.map);
+	ctx.snapshot(program.toString() + "\n#" + withSourceMap.map.toString());
 });

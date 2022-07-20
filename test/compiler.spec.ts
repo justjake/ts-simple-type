@@ -1,20 +1,10 @@
 import test from "ava";
-import {
-	isSimpleTypeLiteral,
-	SimpleTypeEnumMember,
-	SimpleTypeFunction,
-	SimpleTypeInterface,
-	SimpleTypeKind,
-	SimpleTypePath,
-	SimpleTypePathStepNamedMember,
-	unreachable,
-	VisitFnArgs,
-	Visitor
-} from "../src";
-import { SimpleTypeCompiler, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
+import { isSimpleTypeLiteral, SimpleTypePath, SimpleTypePathStepNamedMember, unreachable, Visitor } from "../src";
+import { SimpleTypeCompiler, SimpleTypeCompilerNamespaceLocation, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
 import { toNullableSimpleType } from "../src/transform/inspect-simple-type";
 import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { getTestTypes } from "./helpers/get-test-types";
+import * as path from "path";
 
 const EXAMPLE_TS = `
 type DBTable = 
@@ -33,6 +23,8 @@ enum AnnotationType {
 	Strike,
 	Code
 }
+
+type AliasedType = Text | Table
 
 export interface Table {
   header: string[]
@@ -58,13 +50,13 @@ export interface Annotation {
 type Position = {
 	x: number,
 	y: number
-	move(dx: number, dy: number): void
+	move(dx: number, dy: number): Position
 }
 
 type Dimension = {
 	width: number,
 	height: number
-	resize(width: number, height: number): void
+	resize(width: number, height: number): Dimension
 }
 
 type Rect = Position & Dimension
@@ -73,14 +65,19 @@ export interface Document {
 	parent: RecordPointer
   title: string
   author: string
-  body: Array<Text | Table>
+  body: Array<AliasedType>
 }
 
 `;
 
 test("Compiler example: compile to Python", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
-	const compiler = new SimpleTypeCompiler(typeChecker);
+
+	const getPythonImportPath = (outputFileName: string) => {
+		const parsed = path.parse(outputFileName);
+		const dir = parsed.dir === "" ? [] : parsed.dir.split(path.sep);
+		return [...dir, parsed.name].join(".");
+	};
 
 	function mustBeDefined<T>(val: T | undefined): T {
 		if (val === undefined) {
@@ -89,159 +86,211 @@ test("Compiler example: compile to Python", ctx => {
 		return val;
 	}
 
-	/**
-	 * TASK LIST FOR COMPILER:
-	 *
-	 * - Should unscrew the traversal types so that the object-like ones don't need gnarly casting.
-	 * - ensure eg `from typings import TypedDoc` shows up at top of files
-	 * - problem with "reference to class" : class should be declared in another file or at top level, and just use absolute name.
-	 * - class & enum members: visit.with has bad type inference
-	 *
-	 */
-	const declarations: SimpleTypeCompilerNode[] = [];
-	const compileToPython: Visitor<SimpleTypeCompilerNode> = ({ type, path, visit }: VisitFnArgs<SimpleTypeCompilerNode>) => {
-		const builder = compiler.nodeBuilder(type, path);
-
-		if (type.error) {
-			throw new Error(`SimpleType ${type.kind} has error: ${type.error}`);
-		}
-
-		if (isSimpleTypeLiteral(type)) {
-			if (typeof type.value === "boolean") {
-				return type.value ? builder.node("True") : builder.node("False");
-			}
-			return builder.node(`Literal[${JSON.stringify(type.value)}]`);
-		}
-
-		switch (type.kind) {
-			// Primitive-like
-			case "BOOLEAN":
-				return builder.node(`bool`);
-			case "STRING":
-				return builder.node("str");
-			case "BIG_INT":
-			case "NUMBER":
-				return builder.node("float");
-			case "NULL":
-			case "UNDEFINED":
-			case "VOID":
-				return builder.node("None");
-			case "DATE":
-				return builder.node("DateTime");
-			case "UNKNOWN":
-				return builder.node("object"); // Top type https://github.com/python/mypy/issues/3712
-			case "ANY":
-				return builder.node("Any");
-			case "NEVER":
-				return builder.node("NoReturn");
-
-			// Skip generic shenanigans.
-			case "ALIAS":
-				return mustBeDefined(Visitor.ALIAS.aliased({ path, type, visit })); // TODO: these don't need to be Optional
-			case "GENERIC_ARGUMENTS":
-				return mustBeDefined(Visitor.GENERIC_ARGUMENTS.aliased({ path, type, visit }));
-
-			// Algebraic types
-			case "UNION": {
-				const nullable = toNullableSimpleType(type);
-				if (nullable.kind === "NULLABLE" && nullable.type.kind !== "NEVER") {
-					return builder.node(["Optional[", visit(undefined, nullable.type), "]"]);
-				} else {
-					return builder.node([`Union[`, builder.node(Visitor.UNION.mapVariants({ path, type, visit })).join(", "), `]`]);
+	const compiler = new SimpleTypeCompiler(typeChecker, compiler => ({
+		compileFile(file) {
+			const importFiles = new Set<string>();
+			file.references.forEach(ref => {
+				if (ref.fileName === file.fileName) {
+					return;
 				}
+				importFiles.add(`import ${getPythonImportPath(ref.fileName)}`);
+			});
+			const builder = compiler.anonymousNodeBuilder();
+			const finalNodeList = [...file.nodes];
+			if (importFiles.size) {
+				const refNode = builder.node(Array.from(importFiles)).join("\n");
+				finalNodeList.unshift(refNode);
 			}
-			case "INTERSECTION":
-				if (!type.intersected) {
-					throw new Error(`Cannot convert to Python because python has no intersection concept`);
+			return builder.node(finalNodeList).join("\n\n");
+		},
+		compileReference(args) {
+			const builder = compiler.anonymousNodeBuilder(args.from);
+			if (SimpleTypeCompilerNamespaceLocation.equal(args.from, args.to.location)) {
+				return builder.reference(args.to, `${args.to.location.name}`);
+			}
+
+			const location = args.to.location;
+			const absoluteName = [getPythonImportPath(location.fileName), ...(location.namespace || []), location.name].join(".");
+			return builder.reference(args.to, absoluteName);
+		},
+		compileType: ({ type, path, visit }) => {
+			const builder = compiler.nodeBuilder(type, path);
+
+			if (type.error) {
+				throw new Error(`SimpleType ${type.kind} has error: ${type.error}`);
+			}
+
+			if (isSimpleTypeLiteral(type)) {
+				if (typeof type.value === "boolean") {
+					return type.value ? builder.node("True") : builder.node("False");
 				}
-				return visit(undefined, type.intersected);
+				return builder.node(`Literal[${JSON.stringify(type.value)}]`);
+			}
 
-			// List types
-			case "ARRAY":
-				return builder.node([`list[`, Visitor.ARRAY.numberIndex({ path, type, visit }) ?? "", "]"]);
-			case "TUPLE":
-				return builder.node([`Tuple[`, builder.node(Visitor.TUPLE.mapIndexedMembers({ path, type, visit })).join(", "), `]`]);
-
-			// Object
-			case "INTERFACE":
-			case "CLASS":
-			case "OBJECT": {
-				const name = compiler.getUniqueName(type);
-				// TODO: remove need for ugly hack by normalizing Visitor interface.
-				const type2 = type as SimpleTypeInterface;
-
-				const members = Visitor[type2.kind].mapNamedMembers({
-					path,
-					type: type2,
-					visit: visit.with(({ type, path }) => {
-						const builder = compiler.nodeBuilder(type, path);
-						const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
-						const member = step.member;
-						return builder.node([`    ${member.name}: `, compiler.compileType(type, compileToPython, path)]);
-					})
+			const stdlib = (moduleName: string, name: string) => {
+				return builder.reference({
+					location: {
+						fileName: moduleName,
+						name
+					}
 				});
-				const declaration = builder.node([`@dataclass\nclass ${name}:\n`, members.join("\n") ?? "pass"]);
-				declarations.push(declaration);
-				return builder.node(name);
-			}
+			};
 
-			case "ENUM": {
-				const name = compiler.getUniqueName(type);
-				if (name !== type.name) {
-					// eslint-disable-next-line no-console
-					console.warn(`Warning: Enum name ${type.name} does not match class name ${name}; enum type will be incorrect.`);
+			switch (type.kind) {
+				// Primitive-like
+				case "BOOLEAN":
+					return builder.node`bool`;
+				case "STRING":
+					return builder.node("str");
+				case "BIG_INT":
+				case "NUMBER":
+					return builder.node("float");
+				case "NULL":
+				case "UNDEFINED":
+				case "VOID":
+					return builder.node("None");
+				case "DATE":
+					return stdlib("datetime", "datetime");
+				case "UNKNOWN":
+					return builder.node("object"); // Top type https://github.com/python/mypy/issues/3712
+				case "ANY":
+					return stdlib("typing", "Any");
+				case "NEVER":
+					return stdlib("typing", "NoReturn");
+
+				// Skip generic shenanigans.
+				case "ALIAS":
+					return mustBeDefined(Visitor.ALIAS.aliased({ path, type, visit })); // TODO: these don't need to be Optional
+				case "GENERIC_ARGUMENTS":
+					return mustBeDefined(Visitor.GENERIC_ARGUMENTS.aliased({ path, type, visit }));
+
+				// Algebraic types
+				case "UNION": {
+					const nullable = toNullableSimpleType(type);
+					if (nullable.kind === "NULLABLE" && nullable.type.kind !== "NEVER") {
+						const Optional = stdlib("typing", "Optional");
+						return builder.node`${Optional}[${builder.reference(visit(undefined, nullable.type))}]`;
+					} else {
+						const Union = stdlib("typing", "Union");
+						return builder.node([Union, `[`, builder.references(Visitor.UNION.mapVariants({ path, type, visit })).join(", "), `]`]);
+					}
 				}
-				const members = Visitor.ENUM.mapVariants<SimpleTypeCompilerNode>({
-					path,
-					type,
-					visit: visit.with(({ type, path }) => {
-						if (type.kind !== "ENUM_MEMBER") {
-							throw new Error(`Non ENUM_MEMBER in ENUM`);
-						}
-						if (!isSimpleTypeLiteral(type.type)) {
-							throw new Error(`Non-literal ENUM_MEMBER type: ${simpleTypeToString(type.type)}`);
-						}
+				case "INTERSECTION":
+					if (!type.intersected) {
+						throw new Error(`Cannot convert to Python because python has no intersection concept`);
+					}
+					return visit(undefined, type.intersected);
 
-						const builder = compiler.nodeBuilder(type, path);
-						return builder.node([`    ${type.name} = `, JSON.stringify(type.type.value)]);
-					})
-				});
-				const declaration = builder.node([`class ${name}(Enum):\n`, builder.node(members).join("\n")]);
-				declarations.push(declaration);
-				return builder.node(name);
+				// List types
+				case "ARRAY":
+					return builder.node`list[${builder.reference(Visitor.ARRAY.numberIndex({ path, type, visit })) ?? "object"}]`;
+				case "TUPLE":
+					return builder.node`${stdlib("typing", "Tuple")}[${builder.references(Visitor.TUPLE.mapIndexedMembers({ path, type, visit })).join(", ")}]`;
+
+				// Object
+				case "INTERFACE":
+				case "CLASS":
+				case "OBJECT": {
+					const name = compiler.assignDeclarationLocation(
+						type,
+						type.name
+							? undefined
+							: {
+									fileName: "editor/generated.py"
+							  }
+					);
+					const members = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
+						path,
+						type,
+						visit: visit.with(({ type, path }) => {
+							const builder = compiler.nodeBuilder(type, path);
+							const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
+							const member = step.member;
+							return builder.node([`    ${member.name}: `, builder.reference(compiler.compileType(type, path, name))]);
+						})
+					});
+
+					return builder.declaration(name, ["@", stdlib("dataclasses", "dataclass"), `\nclass ${name.name}:\n`, builder.node(members).join("\n") ?? "pass"]);
+				}
+
+				case "ENUM": {
+					const name = compiler.assignDeclarationLocation(type);
+					if (name.name !== type.name) {
+						// eslint-disable-next-line no-console
+						console.warn(`Warning: Enum name ${type.name} does not match class name ${name}; enum type will be incorrect.`);
+					}
+					const members = Visitor.ENUM.mapVariants<SimpleTypeCompilerNode>({
+						path,
+						type,
+						visit: visit.with(({ type, path }) => {
+							if (type.kind !== "ENUM_MEMBER") {
+								throw new Error(`Non ENUM_MEMBER in ENUM`);
+							}
+							if (!isSimpleTypeLiteral(type.type)) {
+								throw new Error(`Non-literal ENUM_MEMBER type: ${simpleTypeToString(type.type)}`);
+							}
+
+							const builder = compiler.nodeBuilder(type, path);
+							return builder.node([`    ${type.name} = `, JSON.stringify(type.type.value)]);
+						})
+					});
+					const enumReference = stdlib("enum", "Enum");
+					return builder.declaration(name, [`class ${name.name}(`, enumReference, `):\n`, builder.node(members).join("\n")]);
+				}
+
+				case "ENUM_MEMBER": {
+					// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be
+					//       renamed by `uniqueName`.
+					return builder.node(type.fullName);
+				}
+
+				case "METHOD":
+				case "FUNCTION": {
+					return builder.node([
+						`Callable[[`,
+						builder.references(Visitor[type.kind].mapParameters({ path, type, visit })).join(", "),
+						`], `,
+						builder.reference(Visitor.FUNCTION.return({ path, type, visit })) ?? "None",
+						`]`
+					]);
+				}
+
+				case "GENERIC_PARAMETER":
+				case "ES_SYMBOL":
+				case "NON_PRIMITIVE":
+				case "PROMISE":
+					throw new Error(`Unsupported type`);
+
+				default:
+					unreachable(type);
 			}
-
-			case "ENUM_MEMBER": {
-				// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be
-				//       renamed by `uniqueName`.
-				return builder.node(type.fullName);
-			}
-
-			case "METHOD":
-			case "FUNCTION": {
-				const type2 = type as SimpleTypeFunction;
-				return builder.node([
-					`Callable[[`,
-					builder.node(Visitor[type2.kind].mapParameters({ path, type: type2, visit })).join(", "),
-					`], `,
-					Visitor.FUNCTION.return({ path, type: type2, visit }) ?? "None",
-					`]`
-				]);
-			}
-
-			case "GENERIC_PARAMETER":
-			case "ES_SYMBOL":
-			case "NON_PRIMITIVE":
-			case "PROMISE":
-				throw new Error(`Unsupported type`);
-
-			default:
-				unreachable(type);
 		}
-	};
-	const compiledType = compiler.compileType(types.Document, compileToPython);
-	const program = compiler.newNode(compiler.toSimpleType(types.Document), [], [...declarations, compiledType]).join("\n\n");
-	const withSourceMap = program.toStringWithSourceMap();
-	compiler.setSourceContent(withSourceMap.map);
-	ctx.snapshot(program.toString() + "\n#" + withSourceMap.map.toString());
+	}));
+
+	const outputs = compiler.compile([
+		{
+			type: types.Document,
+			location: {
+				fileName: "editor/document.py"
+			}
+		}
+	]);
+
+	for (const output of outputs) {
+		const content = output.code + "\n#" + output.map.toString();
+		ctx.snapshot(content, output.file.fileName);
+	}
+
+	ctx.snapshot(outputs.length, "output count");
+});
+
+test("assignUniqueName: returns independent names in different locations", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+	const compiler = new SimpleTypeCompiler(typeChecker, () => {
+		return {} as any;
+	});
+
+	const DocumentType = compiler.toSimpleType(types.Document);
+	const name = compiler.assignDeclarationLocation(DocumentType);
+	const name2 = compiler.assignDeclarationLocation(DocumentType);
 });

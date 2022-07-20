@@ -1,4 +1,16 @@
-import { SimpleType, SimpleTypeKindMap } from "./simple-type";
+import { SoaRecord } from "dns";
+import {
+	SimpleType,
+	SimpleTypeClass,
+	SimpleTypeEnum,
+	SimpleTypeFunction,
+	SimpleTypeInterface,
+	SimpleTypeIntersection,
+	SimpleTypeKindMap,
+	SimpleTypeMethod,
+	SimpleTypeObject,
+	SimpleTypeUnion
+} from "./simple-type";
 import {
 	SimpleTypePath,
 	SimpleTypePathStep,
@@ -191,75 +203,87 @@ type FunctionVisitors = SimpleTypePathStepVisitors["FUNCTION"];
 type MethodVisitors = SimpleTypePathStepVisitors["METHOD"];
 
 class CallableVisitors implements FunctionVisitors, MethodVisitors {
-	mapTypeParameters: FunctionVisitors["mapTypeParameters"] & MethodVisitors["mapTypeParameters"] = ({ visit, type }) =>
+	static instance = new this();
+
+	mapTypeParameters: GenericListVisitor<SimpleTypeFunction | SimpleTypeMethod, SimpleTypePathStepTypeParameter> = ({ visit, type }) =>
 		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? [];
-	mapParameters: FunctionVisitors["mapParameters"] & MethodVisitors["mapParameters"] = ({ visit, type }) =>
+	mapParameters: GenericListVisitor<SimpleTypeFunction | SimpleTypeMethod, SimpleTypePathStepParameter> = ({ visit, type }) =>
 		type.parameters?.map((param, i) => visit({ from: type, index: i, step: "PARAMETER", parameter: param }, param.type)) ?? [];
-	return: FunctionVisitors["return"] & MethodVisitors["return"] = ({ visit, type }) => type.returnType && visit({ from: type, step: "RETURN" }, type.returnType);
+	return: GenericVisitor<SimpleTypeFunction | SimpleTypeMethod, SimpleTypePathStepReturn> = ({ visit, type }) => type.returnType && visit({ from: type, step: "RETURN" }, type.returnType);
+}
+
+type EnumVisitors = SimpleTypePathStepVisitors["ENUM"];
+type UnionVisitors = SimpleTypePathStepVisitors["UNION"];
+type IntersectionVisitors = SimpleTypePathStepVisitors["INTERSECTION"];
+
+class VariantTypesVisitors implements EnumVisitors, UnionVisitors, IntersectionVisitors {
+	static instance = new this();
+
+	mapVariants: GenericListVisitor<SimpleTypeUnion | SimpleTypeEnum | SimpleTypeIntersection, SimpleTypePathStepVariant> = ({ visit, type }) =>
+		type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant));
 }
 
 type InterfaceVisitors = SimpleTypePathStepVisitors["INTERFACE"];
 type ObjectVisitors = SimpleTypePathStepVisitors["OBJECT"];
 type ClassVisitors = SimpleTypePathStepVisitors["CLASS"];
+
 class ObjectLikeVisitors implements InterfaceVisitors, ObjectVisitors, ClassVisitors {
-	mapTypeParameters: InterfaceVisitors["mapTypeParameters"] & ObjectVisitors["mapTypeParameters"] & ClassVisitors["mapTypeParameters"] = ({ visit, type }) =>
+	static instance = new this();
+
+	mapTypeParameters: GenericListVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepTypeParameter> = ({ visit, type }) =>
 		type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? [];
 
-	callSignature: InterfaceVisitors["callSignature"] & ObjectVisitors["callSignature"] & ClassVisitors["callSignature"] = ({ visit, type }) =>
+	callSignature: GenericVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepCallSignature> = ({ visit, type }) =>
 		type.call && visit({ from: type, step: "CALL_SIGNATURE" }, type.call);
-	ctorSignature: InterfaceVisitors["ctorSignature"] & ObjectVisitors["ctorSignature"] & ClassVisitors["ctorSignature"] = ({ visit, type }) =>
+	ctorSignature: GenericVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepCtorSignature> = ({ visit, type }) =>
 		type.ctor && visit({ from: type, step: "CTOR_SIGNATURE" }, type.ctor);
 
-	mapNamedMembers: InterfaceVisitors["mapNamedMembers"] & ObjectVisitors["mapNamedMembers"] & ClassVisitors["mapNamedMembers"] = ({ visit, type }) =>
+	mapNamedMembers: GenericListVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepNamedMember> = ({ visit, type }) =>
 		type.members?.map((member, i) => visit({ from: type, index: i, step: "NAMED_MEMBER", member }, member.type)) ?? [];
-	numberIndex: InterfaceVisitors["numberIndex"] & ObjectVisitors["numberIndex"] & ClassVisitors["numberIndex"] = ({ visit, type }) =>
+	numberIndex: GenericVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepNumberIndex> = ({ visit, type }) =>
 		type.indexType?.NUMBER && visit({ from: type, step: "NUMBER_INDEX" }, type.indexType.NUMBER);
-	stringIndex: InterfaceVisitors["stringIndex"] & ObjectVisitors["stringIndex"] & ClassVisitors["stringIndex"] = ({ visit, type }) =>
+	stringIndex: GenericVisitor<SimpleTypeInterface | SimpleTypeObject | SimpleTypeClass, SimpleTypePathStepStringIndex> = ({ visit, type }) =>
 		type.indexType?.STRING && visit({ from: type, step: "STRING_INDEX" }, type.indexType.STRING);
 }
 
-const KindVisitors: SimpleTypePathStepVisitors = {
-	// TODO: figure out how to de-dupe these thingies
-	ENUM: {
-		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
-	},
-	UNION: {
-		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
-	},
-	INTERSECTION: {
-		mapVariants: ({ visit, type }) => type.types.map((variant, i) => visit({ from: type, index: i, step: "VARIANT" }, variant))
-	},
-	INTERFACE: new ObjectLikeVisitors(),
-	OBJECT: new ObjectLikeVisitors(),
-	CLASS: new ObjectLikeVisitors(),
-	FUNCTION: new CallableVisitors(),
-	METHOD: new CallableVisitors(),
+const KindVisitors = {
+	ENUM: VariantTypesVisitors.instance,
+	UNION: VariantTypesVisitors.instance,
+	INTERSECTION: VariantTypesVisitors.instance,
+	INTERFACE: ObjectLikeVisitors.instance,
+	OBJECT: ObjectLikeVisitors.instance,
+	CLASS: ObjectLikeVisitors.instance,
+	FUNCTION: CallableVisitors.instance,
+	METHOD: CallableVisitors.instance,
 	GENERIC_ARGUMENTS: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.instantiated),
 		genericTarget: ({ visit, type }) => visit({ from: type, step: "GENERIC_TARGET" }, type.target),
 		mapGenericArguments: ({ visit, type }) => type.typeArguments.map((arg, i) => visit({ from: type, index: i, step: "GENERIC_ARGUMENT", name: arg.name }, arg))
-	},
+	} as SimpleTypePathStepVisitors["GENERIC_ARGUMENTS"],
 	GENERIC_PARAMETER: {
 		typeParameterConstraint: ({ visit, type }) => type.constraint && visit({ from: type, step: "TYPE_PARAMETER_CONSTRAINT" }, type.constraint),
 		typeParameterDefault: ({ visit, type }) => type.default && visit({ from: type, step: "TYPE_PARAMETER_DEFAULT" }, type.default)
-	},
+	} as SimpleTypePathStepVisitors["GENERIC_PARAMETER"],
 	TUPLE: {
 		mapIndexedMembers: ({ visit, type }) => type.members?.map((member, i) => visit({ from: type, index: i, step: "INDEXED_MEMBER", member }, member.type))
-	},
+	} as SimpleTypePathStepVisitors["TUPLE"],
 	ALIAS: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.target),
 		mapTypeParameters: ({ visit, type }) => type.typeParameters?.map((param, i) => visit({ from: type, index: i, step: "TYPE_PARAMETER", name: param.name }, param)) ?? []
-	},
+	} as SimpleTypePathStepVisitors["ALIAS"],
 	ARRAY: {
 		numberIndex: ({ visit, type }) => visit({ from: type, step: "NUMBER_INDEX" }, type.type)
-	},
+	} as SimpleTypePathStepVisitors["ARRAY"],
 	PROMISE: {
 		awaited: ({ visit, type }) => visit({ from: type, step: "AWAITED" }, type.type)
-	},
+	} as SimpleTypePathStepVisitors["PROMISE"],
 	ENUM_MEMBER: {
 		aliased: ({ visit, type }) => visit({ from: type, step: "ALIASED" }, type.type)
-	}
+	} as SimpleTypePathStepVisitors["ENUM_MEMBER"]
 };
+
+type Assert<T, U extends T> = U;
+type _assertKindVisitorsIsCorrect = Assert<SimpleTypePathStepVisitors, typeof KindVisitors>;
 
 // ============================================================================
 // Higher-level visitors

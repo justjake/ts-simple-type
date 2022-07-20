@@ -48,6 +48,12 @@ export type SimpleTypeModifierKind = "EXPORT" | "AMBIENT" | "PUBLIC" | "PRIVATE"
 // ##############################
 // Base
 // ##############################
+
+export interface SimpleTypeAsTypescript {
+	type: ts.Type;
+	checker: ts.TypeChecker;
+	symbol?: ts.Symbol;
+}
 export interface SimpleTypeBase {
 	readonly kind: SimpleTypeKind;
 	readonly name?: string;
@@ -59,11 +65,7 @@ export interface SimpleTypeBase {
 	/**
 	 * Available if `addMethods` parameter set in `toSimpleType`.
 	 */
-	getTypescript?: () => {
-		type: ts.Type;
-		checker: ts.TypeChecker;
-		symbol?: ts.Symbol;
-	};
+	getTypescript?: () => SimpleTypeAsTypescript;
 }
 
 // ##############################
@@ -178,15 +180,17 @@ export interface SimpleTypeIntersection extends SimpleTypeBase {
 // Object Types
 // ##############################
 
+export interface SimpleTypeMemberAsTypescript {
+	memberOfType: ts.Type;
+	symbol: ts.Symbol;
+	checker: ts.TypeChecker;
+}
+
 export interface SimpleTypeMember {
 	readonly type: SimpleType;
 	readonly optional?: boolean;
 	readonly modifiers?: SimpleTypeModifierKind[];
-	getTypescript?: () => {
-		memberOfType: ts.Type;
-		symbol: ts.Symbol;
-		checker: ts.TypeChecker;
-	};
+	getTypescript?: () => SimpleTypeMemberAsTypescript;
 }
 
 export interface SimpleTypeMemberNamed extends SimpleTypeMember {

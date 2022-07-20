@@ -1,10 +1,11 @@
 import test from "ava";
 import { isSimpleTypeLiteral, SimpleTypePath, SimpleTypePathStepNamedMember, unreachable, Visitor } from "../src";
-import { SimpleTypeCompiler, SimpleTypeCompilerNamespaceLocation, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
+import { SimpleTypeCompiler, SimpleTypeCompilerLocation, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
 import { toNullableSimpleType } from "../src/transform/inspect-simple-type";
 import { simpleTypeToString } from "../src/transform/simple-type-to-string";
 import { getTestTypes } from "./helpers/get-test-types";
 import * as path from "path";
+import { RawSourceMap } from "source-map";
 
 const EXAMPLE_TS = `
 type DBTable = 
@@ -105,7 +106,7 @@ test("Compiler example: compile to Python", ctx => {
 		},
 		compileReference(args) {
 			const builder = compiler.anonymousNodeBuilder(args.from);
-			if (SimpleTypeCompilerNamespaceLocation.equal(args.from, args.to.location)) {
+			if (SimpleTypeCompilerLocation.fileAndNamespaceEqual(args.from, args.to.location)) {
 				return builder.reference(args.to, `${args.to.location.name}`);
 			}
 
@@ -206,7 +207,7 @@ test("Compiler example: compile to Python", ctx => {
 							const builder = compiler.nodeBuilder(type, path);
 							const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
 							const member = step.member;
-							return builder.node([`    ${member.name}: `, builder.reference(compiler.compileType(type, path, name))]);
+							return builder.node`    ${member.name}: ${builder.reference(compiler.compileType(type, path, name))}`;
 						})
 					});
 
@@ -267,24 +268,30 @@ test("Compiler example: compile to Python", ctx => {
 		}
 	}));
 
-	const outputs = compiler.compile([
+	const outputs = compiler.compileProgram([
 		{
-			type: types.Document,
-			location: {
+			inputType: types.Document,
+			outputLocation: {
 				fileName: "editor/document.py"
 			}
 		}
 	]);
 
-	for (const output of outputs) {
-		const content = output.code + "\n#" + output.map.toString();
-		ctx.snapshot(content, output.file.fileName);
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
 	}
 
-	ctx.snapshot(outputs.length, "output count");
+	ctx.snapshot(outputs.files.size, "output count");
 });
 
-test("assignUniqueName: returns independent names in different locations", ctx => {
+test("assignDeclarationLocation: same location = same name", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 	const compiler = new SimpleTypeCompiler(typeChecker, () => {
 		return {} as any;
@@ -293,4 +300,29 @@ test("assignUniqueName: returns independent names in different locations", ctx =
 	const DocumentType = compiler.toSimpleType(types.Document);
 	const name = compiler.assignDeclarationLocation(DocumentType);
 	const name2 = compiler.assignDeclarationLocation(DocumentType);
+	ctx.is(name, name2);
+
+	const name3 = compiler.assignDeclarationLocation(DocumentType, {
+		fileName: "random/output.py"
+	});
+	ctx.is(name, name3);
+});
+
+test("assignDeclarationLocation: same location with different type gives unique names", ctx => {
+	const one = getTestTypes(["Document"], EXAMPLE_TS);
+	const two = getTestTypes(["Document"], EXAMPLE_TS);
+	const compiler1 = new SimpleTypeCompiler(one.typeChecker, () => {
+		return {} as any;
+	});
+	const compiler2 = new SimpleTypeCompiler(two.typeChecker, () => {
+		return {} as any;
+	});
+
+	const doc1 = compiler1.toSimpleType(one.types.Document);
+	const doc2 = compiler2.toSimpleType(two.types.Document);
+	const name1 = compiler1.assignDeclarationLocation(doc1);
+	const name2 = compiler1.assignDeclarationLocation(doc2);
+
+	ctx.not(name1.name, name2.name);
+	ctx.true(SimpleTypeCompilerLocation.fileAndNamespaceEqual(name1, name2));
 });

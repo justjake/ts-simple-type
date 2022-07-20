@@ -411,6 +411,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 		};
 	} else if (type.isIntersection()) {
 		// Approximate the concrete intersection as properties.
+		// TODO: call signatures, etc.
 		const members = type.getProperties().map(symbol => {
 			const declaration = getDeclaration(symbol, ts);
 			const result: Writable<SimpleTypeMemberNamed> = {

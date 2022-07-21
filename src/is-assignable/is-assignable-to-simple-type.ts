@@ -145,6 +145,9 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 	}
 
 	if (options.depth >= options.config.maxDepth! || options.operations.value >= options.config.maxOps!) {
+		if (options.config.debug) {
+			logDebug(options, "comparing types", `Returns true because depth ${options.depth} >= ${options.config.maxDepth} || ${options.operations.value} >= ${options.config.maxOps}`);
+		}
 		options.preventCaching();
 		return true;
 	}
@@ -156,7 +159,7 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			options.preventCaching();
 
 			if (options.config.debug) {
-				logDebug(options, "comparing types", "Returns true because this relation is already being checking");
+				logDebug(options, "comparing types", "Returns true because this relation is already being checked");
 			}
 
 			return true;

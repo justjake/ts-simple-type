@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import test from "ava";
 import { existsSync, writeFileSync } from "fs";
 import { CompilerOptions, isBlock, Node } from "typescript";
@@ -97,8 +99,9 @@ export function testCombinedTypeAssignment(typesX: TypescriptType[], typesY: Typ
 			}
 
 			if (actualResult !== expectedResult) {
-				t.log("Simple Type A", inspect(simpleTypeA, false, 5, true));
-				t.log("Simple Type B", inspect(simpleTypeB, false, 5, true));
+				t.log(`isAssignableToType(A, B) returned ${actualResult}, but expected ${expectedResult}`);
+				t.log("Simple Type A:", `'${typeAString}' (${simpleTypeA.kind})`, inspect(simpleTypeA, false, 5, true));
+				t.log("Simple Type B:", `'${typeBString}' (${simpleTypeB.kind})`, inspect(simpleTypeB, false, 5, true));
 
 				const failText = `${actualResult ? "Can" : "Can't"} assign '${typeBString}' (${simpleTypeB.kind}) to '${typeAString}' (${simpleTypeA.kind}) but ${
 					expectedResult ? "it should be possible!" : "it shouldn't be possible!"

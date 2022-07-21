@@ -114,7 +114,14 @@ export type IntersectionAlias = ObjectAlias & StringAlias
 	};
 	ctx.deepEqual(toSimpleType(types.UnionAlias, typeChecker), unionAliasSimpleType);
 
-	ctx.deepEqual(toSimpleType(types.IntersectionAlias, typeChecker), {
+	const intersectionAliasType = {
+		...toSimpleType(types.IntersectionAlias, typeChecker)
+	};
+	if (intersectionAliasType.kind === "INTERSECTION") {
+		delete intersectionAliasType.intersected;
+	}
+
+	ctx.deepEqual(intersectionAliasType, {
 		kind: "INTERSECTION",
 		name: "IntersectionAlias",
 		types: [

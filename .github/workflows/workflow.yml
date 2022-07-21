@@ -1,6 +1,6 @@
 name: Main Workflow
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
     run:
@@ -12,9 +12,9 @@ jobs:
                 node:
                     - 12.x
                     - 16.x
-                typescript:
-                    - "4.5.5"
-                    # - "4.7.4" # TODO: seems to break tuple type -> never issue
+                # typescript:
+                # - "4.5.5"
+                # - "4.7.4" # TODO: seems to break tuple type -> never issue
 
         steps:
             - name: Checkout code
@@ -38,8 +38,8 @@ jobs:
               if: steps.cache.outputs.cache-hit != 'true'
               run: npm ci --ignore-scripts
 
-            - name: Typescript
-              run: npm install typescript@${{ matrix.typescript }}
+            # - name: Typescript
+            #   run: npm install typescript@${{ matrix.typescript }}
 
             - name: Lint
               run: npm run lint

@@ -356,13 +356,6 @@ export const SimpleTypePath = {
 	}
 } as const;
 
-interface Foo<A extends Map<string, string>> {
-	bar: A;
-}
-
-// path to Map<string, string>
-// Foo<A extends>
-
 export function unreachable(x: never): never {
 	throw new Error(`Should be unreachable, instead exists: ${JSON.stringify(x)}`);
 }

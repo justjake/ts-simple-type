@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, relative, resolve } from "path";
 import { CompilerOptions, convertCompilerOptionsFromJson, createProgram, findConfigFile, Program, readConfigFile, SourceFile, TypeChecker } from "typescript";
@@ -176,7 +177,7 @@ function printType(simpleType: SimpleType, checker: TypeChecker, title: string) 
 		//console.log(`##### ${title} flat #####`);
 		//console.dir(serialized, { depth: 4 });
 		//console.log(`\n##### ${title} nested #####`);
-		console.dir(deserialized, { depth: 6 });
+		console.dir(deserialized, { depth: 17 });
 	}
 }
 

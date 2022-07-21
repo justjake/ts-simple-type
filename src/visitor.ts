@@ -1,4 +1,3 @@
-import { SoaRecord } from "dns";
 import {
 	SimpleType,
 	SimpleTypeClass,
@@ -283,6 +282,7 @@ const KindVisitors = {
 };
 
 type Assert<T, U extends T> = U;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type _assertKindVisitorsIsCorrect = Assert<SimpleTypePathStepVisitors, typeof KindVisitors>;
 
 // ============================================================================

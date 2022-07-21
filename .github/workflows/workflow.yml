@@ -32,6 +32,7 @@ jobs:
                   path: node_modules
                   key: ${{ runner.os }}-node${{ matrix.node }}-ts${{ matrix.typescript}}-${{ hashFiles('**/package-lock.json') }}
                   restore-keys: |
+                      ${{ runner.os }}-node${{ matrix.node }}-ts${{ matrix.typescript}}-${{ hashFiles('**/package-lock.json') }}
                       ${{ runner.os }}-node${{ matrix.node }}-ts${{ matrix.typescript }}
 
             - name: Install

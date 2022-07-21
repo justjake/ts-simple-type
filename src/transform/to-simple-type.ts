@@ -801,8 +801,7 @@ function getTypeParameters(obj: ESSymbol | Declaration | undefined, options: ToS
 	return undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function log(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 

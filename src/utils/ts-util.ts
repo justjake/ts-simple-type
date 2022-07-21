@@ -63,7 +63,7 @@ export function isESSymbolLike(type: Type, ts: typeof tsModule) {
 	return typeHasFlag(type, ts.TypeFlags.ESSymbolLike) || type.symbol?.name === "Symbol";
 }
 
-export function isAlias(type: Type, ts: typeof tsModule): type is Type & { aliasSymbol: Symbol } {
+export function isAlias(type: Type, _ts: typeof tsModule): type is Type & { aliasSymbol: Symbol } {
 	return Boolean(type.aliasSymbol);
 }
 
@@ -152,7 +152,7 @@ export function isMethod(type: Type, ts: typeof tsModule): type is TypeReference
 	return hasFlag(symbol.flags, ts.SymbolFlags.Method);
 }
 
-export function getDeclaration(symbol: Symbol, ts: typeof tsModule): Declaration | undefined {
+export function getDeclaration(symbol: Symbol, _ts: typeof tsModule): Declaration | undefined {
 	const declarations = symbol.getDeclarations();
 	if (declarations == null || declarations.length === 0) return symbol.valueDeclaration;
 	return declarations[0];
@@ -276,7 +276,7 @@ export function isMethodSignature(type: Type, ts: typeof tsModule): boolean {
 	return decl.kind === ts.SyntaxKind.MethodSignature;
 }
 
-export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, ts: typeof tsModule): Type {
+export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, _ts: typeof tsModule): Type {
 	const checker = publicChecker as TypeCheckerInternal;
 	if (checker.getTypeOfSymbol) {
 		return checker.getTypeOfSymbol(symbol);

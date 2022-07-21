@@ -912,7 +912,7 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// Compare if typeB elements are assignable to typeA's rest element
 			// Example: [string, ...boolean[]] === [any, true, 123]
 			if (typeA.rest && typeB.members.length > typeA.members.length) {
-				return and(typeB.members.slice(typeA.members.length), (memberB, i) => {
+				return and(typeB.members.slice(typeA.members.length), memberB => {
 					return isAssignableToSimpleTypeCached(typeA.members[typeA.members.length - 1].type, memberB.type, options);
 				});
 			}

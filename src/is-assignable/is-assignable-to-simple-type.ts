@@ -145,6 +145,9 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 	}
 
 	if (options.depth >= options.config.maxDepth! || options.operations.value >= options.config.maxOps!) {
+		if (options.config.debug) {
+			logDebug(options, "comparing types", `Returns true because depth ${options.depth} >= ${options.config.maxDepth} || ${options.operations.value} >= ${options.config.maxOps}`);
+		}
 		options.preventCaching();
 		return true;
 	}
@@ -156,7 +159,7 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			options.preventCaching();
 
 			if (options.config.debug) {
-				logDebug(options, "comparing types", "Returns true because this relation is already being checking");
+				logDebug(options, "comparing types", "Returns true because this relation is already being checked");
 			}
 
 			return true;
@@ -909,7 +912,7 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// Compare if typeB elements are assignable to typeA's rest element
 			// Example: [string, ...boolean[]] === [any, true, 123]
 			if (typeA.rest && typeB.members.length > typeA.members.length) {
-				return and(typeB.members.slice(typeA.members.length), (memberB, i) => {
+				return and(typeB.members.slice(typeA.members.length), memberB => {
 					return isAssignableToSimpleTypeCached(typeA.members[typeA.members.length - 1].type, memberB.type, options);
 				});
 			}

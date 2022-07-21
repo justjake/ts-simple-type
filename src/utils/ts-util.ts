@@ -63,7 +63,7 @@ export function isESSymbolLike(type: Type, ts: typeof tsModule) {
 	return typeHasFlag(type, ts.TypeFlags.ESSymbolLike) || type.symbol?.name === "Symbol";
 }
 
-export function isAlias(type: Type, ts: typeof tsModule): type is Type & { aliasSymbol: Symbol } {
+export function isAlias(type: Type, _ts: typeof tsModule): type is Type & { aliasSymbol: Symbol } {
 	return Boolean(type.aliasSymbol);
 }
 
@@ -152,7 +152,7 @@ export function isMethod(type: Type, ts: typeof tsModule): type is TypeReference
 	return hasFlag(symbol.flags, ts.SymbolFlags.Method);
 }
 
-export function getDeclaration(symbol: Symbol, ts: typeof tsModule): Declaration | undefined {
+export function getDeclaration(symbol: Symbol, _ts: typeof tsModule): Declaration | undefined {
 	const declarations = symbol.getDeclarations();
 	if (declarations == null || declarations.length === 0) return symbol.valueDeclaration;
 	return declarations[0];
@@ -276,7 +276,7 @@ export function isMethodSignature(type: Type, ts: typeof tsModule): boolean {
 	return decl.kind === ts.SyntaxKind.MethodSignature;
 }
 
-export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, ts: typeof tsModule): Type {
+export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, _ts: typeof tsModule): Type {
 	const checker = publicChecker as TypeCheckerInternal;
 	if (checker.getTypeOfSymbol) {
 		return checker.getTypeOfSymbol(symbol);
@@ -323,4 +323,40 @@ interface SymbolWalker {
 		visitedTypes: readonly ts.Type[];
 		visitedSymbols: readonly ts.Symbol[];
 	};
+}
+
+/**
+ * Find the discriminant property symbols of a union type.
+ * If the union has no discriminant, returns undefined.
+ *
+ * @see https://github.com/microsoft/TypeScript/blob/main/src/compiler/checker.ts `findDiscriminantProperties`, `isDiscriminantProperty`
+ */
+export function getDiscriminantPropertiesOfType(type: ts.UnionType): ts.Symbol[] | undefined {
+	/** Non-exported type copied from Typescript compiler internals. */
+	enum CheckFlags {
+		SyntheticProperty = 1 << 1, // Property in union or intersection type
+		HasNonUniformType = 1 << 6, // Synthetic property with non-uniform type in constituents
+		HasLiteralType = 1 << 7, // Synthetic property with at least one literal type in constituents
+		Discriminant = HasNonUniformType | HasLiteralType
+	}
+
+	function isDiscriminantProperty(property: ts.Symbol) {
+		if ("isDiscriminantProperty" in property && (property as typeof property & { isDiscriminantProperty?: boolean }).isDiscriminantProperty) {
+			return true;
+		}
+
+		if ("checkFlags" in property) {
+			const checkFlags = (property as typeof property & { checkFlags: CheckFlags }).checkFlags;
+			if (checkFlags & CheckFlags.SyntheticProperty && (checkFlags & CheckFlags.Discriminant) === CheckFlags.Discriminant) {
+				// TODO: Exclude if the property is generic.
+				// Too difficult to extract from Typescript source.
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	const discriminants = type.getProperties().filter(isDiscriminantProperty);
+	return discriminants.length ? discriminants : undefined;
 }

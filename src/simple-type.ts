@@ -48,13 +48,24 @@ export type SimpleTypeModifierKind = "EXPORT" | "AMBIENT" | "PUBLIC" | "PRIVATE"
 // ##############################
 // Base
 // ##############################
+
+export interface SimpleTypeAsTypescript {
+	type: ts.Type;
+	checker: ts.TypeChecker;
+	symbol?: ts.Symbol;
+}
 export interface SimpleTypeBase {
 	readonly kind: SimpleTypeKind;
 	readonly name?: string;
 	readonly error?: string;
-	getType?: () => ts.Type;
-	getTypeChecker?: () => ts.TypeChecker;
-	getSymbol?: () => ts.Symbol | undefined;
+	// Note about methods: it would be great if the converter always added the
+	// methods - then we could make these fields non-optional; but doing so makes
+	// it annoying user code to synthesize SimpleType objects.
+	// So, we'll leave them optional for now.
+	/**
+	 * Available if `addMethods` parameter set in `toSimpleType`.
+	 */
+	getTypescript?: () => SimpleTypeAsTypescript;
 }
 
 // ##############################
@@ -156,21 +167,30 @@ export interface SimpleTypeEnum extends SimpleTypeBase {
 export interface SimpleTypeUnion extends SimpleTypeBase {
 	readonly kind: "UNION";
 	readonly types: SimpleType[];
+	readonly discriminantMembers?: Array<SimpleTypeMember | SimpleTypeMemberNamed>;
 }
 
 export interface SimpleTypeIntersection extends SimpleTypeBase {
 	readonly kind: "INTERSECTION";
 	readonly types: SimpleType[];
+	readonly intersected?: SimpleType;
 }
 
 // ##############################
 // Object Types
 // ##############################
 
+export interface SimpleTypeMemberAsTypescript {
+	memberOfType: ts.Type;
+	symbol: ts.Symbol;
+	checker: ts.TypeChecker;
+}
+
 export interface SimpleTypeMember {
 	readonly type: SimpleType;
 	readonly optional?: boolean;
 	readonly modifiers?: SimpleTypeModifierKind[];
+	getTypescript?: () => SimpleTypeMemberAsTypescript;
 }
 
 export interface SimpleTypeMemberNamed extends SimpleTypeMember {

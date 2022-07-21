@@ -12,7 +12,9 @@ import {
 	SimpleTypeGenericArguments,
 	SimpleTypeGenericParameter,
 	SimpleTypeInterface,
+	SimpleTypeIntersection,
 	SimpleTypeLiteral,
+	SimpleTypeMember,
 	SimpleTypeMemberNamed,
 	SimpleTypeMethod,
 	SimpleTypeObject
@@ -291,11 +293,33 @@ function withMethods(obj: SimpleType, type: Type, options: ToSimpleTypeInternalO
 		return obj;
 	}
 
+	const checker = options.checker;
+
 	return {
 		...obj,
-		getType: () => type,
-		getTypeChecker: () => options.checker,
-		getSymbol: () => type.getSymbol()
+		getTypescript: () => ({
+			type,
+			checker,
+			// TODO: pass this in?
+			symbol: type.aliasSymbol || type.getSymbol()
+		})
+	};
+}
+
+function memberWithMethods<T extends SimpleTypeMember>(obj: T, symbol: ts.Symbol, memberOfType: Type, options: ToSimpleTypeInternalOptions): T {
+	if (!options.addMethods) {
+		return obj;
+	}
+
+	const checker = options.checker;
+
+	return {
+		...obj,
+		getTypescript: () => ({
+			checker,
+			memberOfType,
+			symbol
+		})
 	};
 }
 
@@ -386,11 +410,46 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			name
 		};
 	} else if (type.isIntersection()) {
-		simpleType = {
+		// Approximate the concrete intersection as properties.
+		// TODO: call signatures, etc.
+		const members = type.getProperties().map(symbol => {
+			const declaration = getDeclaration(symbol, ts);
+			const result: Writable<SimpleTypeMemberNamed> = {
+				name: symbol.name,
+				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker, ts), options)
+			};
+
+			if (symbolIsOptional(symbol, ts)) {
+				result.optional = true;
+			}
+
+			const modifiers = declaration != null ? getModifiersFromDeclaration(declaration, ts) : [];
+			if (modifiers.length) {
+				result.modifiers = modifiers;
+			}
+
+			return memberWithMethods(result, symbol, type, options);
+		});
+
+		const intersection: Writable<SimpleTypeIntersection> = {
 			kind: "INTERSECTION",
 			types: simplifySimpleTypes(type.types.map(t => toSimpleTypeCached(t, options))),
 			name
 		};
+
+		if (members.length) {
+			intersection.intersected = withMethods(
+				{
+					kind: "OBJECT",
+					name,
+					members
+				},
+				type,
+				options
+			);
+		}
+
+		simpleType = intersection;
 	}
 
 	// Date
@@ -473,7 +532,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 					if (modifiers.length > 0) {
 						result.modifiers = modifiers;
 					}
-					return result;
+					return memberWithMethods(result, symbol, type, options);
 				})
 				.filter((member): member is NonNullable<typeof member> => member != null);
 
@@ -515,7 +574,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 				result.modifiers = modifiers;
 			}
 
-			return result;
+			return memberWithMethods(result, symbol, type, options);
 		});
 
 		const ctor = getSimpleFunctionFromCallSignatures(type.getConstructSignatures(), options) as SimpleTypeFunction;
@@ -742,8 +801,7 @@ function getTypeParameters(obj: ESSymbol | Declaration | undefined, options: ToS
 	return undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function log(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 
@@ -777,6 +835,6 @@ export function debugTypeFlags(type: Type) {
 	};
 }
 
-type Writable<T> = {
+export type Writable<T> = {
 	-readonly [K in keyof T]: T[K];
 };

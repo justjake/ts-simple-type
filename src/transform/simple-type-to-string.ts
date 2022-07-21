@@ -5,6 +5,11 @@ import { isSimpleTypePrimitive, SimpleType, SimpleTypeFunctionParameter } from "
  * @param type Simple Type
  */
 export function simpleTypeToString(type: SimpleType): string {
+	// if (type.getTypescript) {
+	// 	const ts = type.getTypescript();
+	// 	return ts.checker.typeToString(ts.type);
+	// }
+
 	return simpleTypeToStringInternal(type, new Set());
 }
 

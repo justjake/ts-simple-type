@@ -1,10 +1,20 @@
 import test from "ava";
-import { __String } from "typescript";
-import ts = require("typescript");
 import { inspect } from "util";
-import { getTypescriptModule, SimpleTypeAlias, SimpleTypeGenericArguments, SimpleTypeInterface, SimpleTypeObject, SimpleTypeUnion, toSimpleType } from "../src";
+import {
+	getTypescriptModule,
+	SimpleType,
+	SimpleTypeAlias,
+	SimpleTypeArray,
+	SimpleTypeGenericArguments,
+	SimpleTypeInterface,
+	SimpleTypeObject,
+	SimpleTypeString,
+	SimpleTypeUnion,
+	toSimpleType
+} from "../src";
 import { isType } from "../src/utils/ts-util";
-import { ITestFile, programWithVirtualFiles } from "./helpers/analyze-text";
+import { getTestTypes } from "./helpers/get-test-types";
+import ts = require("typescript");
 
 const TEST_TYPES = `
 type ActivityTable = 'activity'
@@ -41,9 +51,11 @@ test("it adds methods when addMethods is set", ctx => {
 		addMethods: true
 	});
 
-	ctx.is(simpleType.getType?.(), types.SimpleAliasExample);
-	ctx.is(simpleType.getTypeChecker?.(), typeChecker);
-	ctx.is(simpleType.getSymbol?.(), types.SimpleAliasExample.getSymbol());
+	const toTs = simpleType.getTypescript?.();
+
+	ctx.is(toTs?.type, types.SimpleAliasExample);
+	ctx.is(toTs?.checker, typeChecker);
+	ctx.is(toTs?.symbol, types.SimpleAliasExample.aliasSymbol || types.SimpleAliasExample.symbol);
 });
 
 test("basic type alias handling", ctx => {
@@ -102,7 +114,14 @@ export type IntersectionAlias = ObjectAlias & StringAlias
 	};
 	ctx.deepEqual(toSimpleType(types.UnionAlias, typeChecker), unionAliasSimpleType);
 
-	ctx.deepEqual(toSimpleType(types.IntersectionAlias, typeChecker), {
+	const intersectionAliasType = {
+		...toSimpleType(types.IntersectionAlias, typeChecker)
+	};
+	if (intersectionAliasType.kind === "INTERSECTION") {
+		delete intersectionAliasType.intersected;
+	}
+
+	ctx.deepEqual(intersectionAliasType, {
 		kind: "INTERSECTION",
 		name: "IntersectionAlias",
 		types: [
@@ -283,7 +302,6 @@ test("generic interface handling", ctx => {
 
 test("generic type alias handling", ctx => {
 	const { types, typeChecker } = getTestTypes(["RecordPointer", "ActivityPointer", "Table"], TEST_TYPES);
-	log(types.ActivityPointer);
 	const activityPointerSimpleType = toSimpleType(types.ActivityPointer, typeChecker);
 	const expectedActivityPointerInstance: SimpleTypeObject = {
 		kind: "OBJECT",
@@ -353,54 +371,66 @@ test("generic type alias handling", ctx => {
 	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
 });
 
-function getTestTypes<TypeNames extends string>(
-	typeNames: TypeNames[],
-	source: string
-): {
-	types: Record<TypeNames, ts.Type>;
-	program: ts.Program;
-	typeChecker: ts.TypeChecker;
-} {
-	const testFile: ITestFile = {
-		fileName: "test.ts",
-		text: source
-	};
-	const program = programWithVirtualFiles(testFile, {
-		options: {
-			strict: true
+const stringSimpleType: SimpleTypeString = {
+	kind: "STRING"
+};
+const arrayOfStringSimpleType: SimpleTypeArray = {
+	name: "Array",
+	kind: "ARRAY",
+	type: stringSimpleType
+};
+
+testExpectedTypes(
+	"Arrays",
+	{
+		ArrayOfString: arrayOfStringSimpleType,
+		ArrayOfArrayOfString: {
+			kind: "ARRAY",
+			name: "Array",
+			type: arrayOfStringSimpleType
+		},
+		ArrayOfStringLong: arrayOfStringSimpleType,
+		ArrayOfArrayOfStringLong: {
+			kind: "ARRAY",
+			name: "Array",
+			type: arrayOfStringSimpleType
 		}
-	});
-	const [sourceFile] = program.getSourceFiles().filter(f => f.fileName.includes(testFile.fileName));
-	const typeChecker = program.getTypeChecker();
-	const moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile)!;
-	const result = {
-		types: {} as Record<TypeNames, ts.Type>,
-		program,
-		typeChecker
-	};
+	},
+	`
+export type ArrayOfString = string[];	
+export type ArrayOfArrayOfString = string[][];
+export type ArrayOfStringLong = Array<string>;
+export type ArrayOfArrayOfStringLong = Array<Array<string>>;
+	`
+);
 
-	for (const name of typeNames) {
-		const symbol = assert(moduleSymbol.exports?.get(name as __String), `${name} symbol`);
-		const type = typeChecker.getDeclaredTypeOfSymbol(symbol);
-		result.types[name] = type;
+function testExpectedTypes<ExportedTypeName extends string>(prefix: string, expectations: Record<ExportedTypeName, SimpleType | (() => SimpleType)>, typescriptText: string) {
+	const typeNames = Object.keys(expectations) as ExportedTypeName[];
+	for (const typeName of typeNames) {
+		test(`${prefix}: ${typeName}`, ctx => {
+			const { types, typeChecker } = getTestTypes(typeNames, typescriptText);
+			const simpleType = toSimpleType(types[typeName], typeChecker);
+			const expected = expectations[typeName];
+			try {
+				ctx.deepEqual(simpleType, typeof expected === "function" ? expected() : expected, debugTypeString(types[typeName])[2]);
+			} catch (error) {
+				log(types[typeName]);
+				throw error;
+			}
+		});
 	}
-	return result;
 }
 
-function assert<T>(val: T | undefined, msg: string): T {
-	if (val == null) {
-		throw new Error(`Expected value to be defined: ${msg}`);
-	}
-	return val;
-}
-
-function log(input: unknown, d = 3) {
+function debugTypeString(input: unknown, d = 3) {
 	const str = inspect(input, { depth: d, colors: true });
 	const flags = input && typeof input === "object" && isType(input) && debugTypeFlags(input);
 	const asString = input && typeof input === "object" && isType(input) && (input as any).checker.typeToString(input);
+	return [asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)")];
+}
 
+function log(input: unknown, d = 3) {
 	// eslint-disable-next-line no-console
-	console.log(asString, flags, str.replace(/checker: {[\s\S]*?}/g, "(typechecker)"));
+	console.log(...debugTypeString(input, d));
 }
 
 function debugTypeFlags(type: ts.Type) {

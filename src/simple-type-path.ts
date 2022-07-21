@@ -200,6 +200,64 @@ export const SimpleTypePath = {
 		return path[path.length - 1];
 	},
 
+	toTypescript(path: SimpleTypePath): string {
+		const parts: string[] = [];
+		if (path.length === 0) {
+			parts.push("T");
+		}
+
+		for (const step of path) {
+			if (parts.length === 0) {
+				parts.push(step.from.name ?? "T");
+			}
+
+			switch (step.step) {
+				case "ALIASED":
+					continue;
+				case "AWAITED":
+					parts.unshift("Awaited<");
+					parts.push(">");
+					continue;
+				case "CALL_SIGNATURE":
+				case "CTOR_SIGNATURE":
+				case "GENERIC_TARGET":
+					continue;
+				case "INDEXED_MEMBER":
+					parts.push(`[${step.index}]`);
+					continue;
+				case "NAMED_MEMBER":
+					parts.push(`["${step.member.name}"]`);
+					continue;
+				case "NUMBER_INDEX":
+					parts.push(`[number]`);
+					continue;
+				case "STRING_INDEX":
+					parts.push(`[string]`);
+					continue;
+				case "PARAMETER":
+					parts.unshift("Parameters<");
+					parts.push(`>[${step.index}]`);
+					continue;
+				case "TYPE_PARAMETER":
+				case "TYPE_PARAMETER_CONSTRAINT":
+				case "TYPE_PARAMETER_DEFAULT":
+					continue;
+				case "VARIANT":
+					continue;
+				case "RETURN":
+					parts.unshift("ReturnType<");
+					parts.push(">");
+					continue;
+				case "GENERIC_ARGUMENT":
+					continue;
+				default:
+					unreachable(step);
+			}
+		}
+
+		return parts.join("");
+	},
+
 	toString(path: SimpleTypePath, target?: SimpleType): string {
 		const arrow = (name: string) => `~${name}~>`;
 		const typeName = (type: SimpleType) => {

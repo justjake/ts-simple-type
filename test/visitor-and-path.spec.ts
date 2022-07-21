@@ -1,7 +1,7 @@
 import test from "ava";
 import { SimpleTypePath } from "../src/simple-type-path";
 import { toSimpleType } from "../src/transform/to-simple-type";
-import { Visitor, walkDepthFirst } from "../src/visitor";
+import { VisitFnArgs, Visitor, walkDepthFirst } from "../src/visitor";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TYPES = `
@@ -36,20 +36,26 @@ test("visitDepthFirst", ctx => {
 		cache: new WeakMap()
 	});
 
+	const toStrings = (args: VisitFnArgs<void>) =>
+		`
+toString:     ${SimpleTypePath.toString(args.path, args.type)}
+toTypescript: ${SimpleTypePath.toTypescript(args.path)}
+`.trim();
+
 	const visitBeforeOrder: string[] = [];
 	const visitAfterOrder: string[] = [];
 
 	walkDepthFirst([], simpleType, {
 		before(args) {
-			visitBeforeOrder.push(SimpleTypePath.toString(args.path, args.type));
+			visitBeforeOrder.push(toStrings(args));
 		},
 		after(args) {
-			visitAfterOrder.push(SimpleTypePath.toString(args.path, args.type));
+			visitBeforeOrder.push(toStrings(args));
 		}
 	});
 
-	ctx.snapshot(visitBeforeOrder, "pre-order");
-	ctx.snapshot(visitAfterOrder, "post-order");
+	ctx.snapshot("\n" + visitBeforeOrder.join("\n\n"), "pre-order");
+	ctx.snapshot("\n" + visitAfterOrder.join("\n\n"), "post-order");
 });
 
 test("visitDepthFirst: makes errors nice", ctx => {

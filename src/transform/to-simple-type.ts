@@ -416,7 +416,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			const declaration = getDeclaration(symbol, ts);
 			const result: Writable<SimpleTypeMemberNamed> = {
 				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker, ts), options)
+				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker), options)
 			};
 
 			if (symbolIsOptional(symbol, ts)) {
@@ -562,7 +562,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			const declaration = getDeclaration(symbol, ts);
 			const result: Writable<SimpleTypeMemberNamed> = {
 				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker, ts), options)
+				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker), options)
 			};
 
 			if (symbolIsOptional(symbol, ts)) {

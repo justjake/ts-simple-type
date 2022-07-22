@@ -1,44 +1,86 @@
-# ts-simple-type
+# @jitl/ts-simple-type
 
-<a href="https://npmcharts.com/compare/ts-simple-type?minimal=true"><img alt="Downloads per month" src="https://img.shields.io/npm/dm/ts-simple-type.svg" height="20"></img></a>
-<a href="https://www.npmjs.com/package/ts-simple-type"><img alt="NPM Version" src="https://badge.fury.io/js/ts-simple-type.svg" height="20"></img></a>
-<a href="https://github.com/runem/ts-simple-type/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/runem/ts-simple-type.svg" height="20"></img></a>
-<a href="https://opensource.org/licenses/MIT"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-yellow.svg" height="20"></img></a>
+`ts-simple-type` provides a simple, type-safe API for analyzing types, constructing new types, and generating code based on types.
 
-## What is this?
+- Convert `ts.Type` to `SimpleType`, a clear and understandable union, with `toSimpleType(type, checker)`.
+- Check type assignability with `isAssignableToType(baseType, variant)`.
+- Compile your `SimpleType`s to any text-based format, with source maps that point to your Typescript sources, with `SimpleTypeCompiler`.
 
-Right now the type checker for Typescript API doesn't expose methods for checking assignability and building types. See issue [#9879](https://github.com/Microsoft/TypeScript/issues/9879) and [#29432](https://github.com/Microsoft/TypeScript/issues/29432) on the Typescript github repository.
+## Why use this?
 
-To fill in the gap while this issue is being discussed this library aims to provide the most essential helper functions for working with types in Typescript.
+Typescript's API for analyzing types is verbose and confusing. There's no public APIs for checking assignability or building types.
+See issue [#9879](https://github.com/Microsoft/TypeScript/issues/9879) and [#29432](https://github.com/Microsoft/TypeScript/issues/29432) on the Typescript github repository.
+Typescript also famously avoids emitting any code based on type level information.
 
-Furthermore, this library can help you construct types (called `SimpleType`) which can be serialized and easy analyzed. 
+This library has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/justjake/ts-simple-type/blob/master/test-types/test-types.ts)).
 
-This library has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/runem/ts-simple-type/blob/master/test-types/test-types.ts)).
+There are many libraries that claim to convert your Typescript types to other formats, such as [ts-json-schema-generator](https://github.com/vega/ts-json-schema-generator), [ts-to-zod](https://github.com/fabien0102/ts-to-zod), or [typeconv](https://github.com/grantila/typeconv/)/[core-types-ts](https://github.com/grantila/core-types-ts). These libraries work by *interpreting the Typescript AST*, essentially re-implementing a bare-bones type system from scratch. Most do not support advanced Typescript features like generic application, mapped types, or string literal types. `@jitl/ts-simple-type` avoids these limitations by using Typescript's first-party `ts.TypeChecker` API to analyze types. This library is focused on the *semantic meaning* of your types, not on how they are *syntactically declared*.
 
 ## Installation
 
 ```bash
-npm install ts-simple-type
+npm install @jitl/ts-simple-type
 ```
 
-## How to use
+## Usage
 
-The API is very simple. For example if you want to check if Typescript type `typeB` is assignable to `typeA`, you can use the following function.
+### Setting up the Typescript compiler API
+
+To use ts-simple-type, we first need to use the Typescript compiler API to build
+a "program" to parse code and compute types. We'll pass a list of the files we care about to the program, and then retrieve its TypeChecker.
+
+Then, we'll retrieve types using the program's TypeChecker, so we can analyze those types with `@jitl/ts-simple-type`.
+
+For more information, see [Typescript's Compiler API guide](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API).
 
 ```typescript
-import { isAssignableToType } from "ts-simple-type";
+import * as ts from 'typescript';
+import * as fs from 'fs';
+import * as path from 'path';
+import { unstableTsUtils } from '@jitl/ts-simple-type';
+
+function getCompilerOptions() {
+  const tsconfigPath = path.resolve('./tsconfig.json');
+  const rawConfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'));
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    rawConfig,
+    ts.sys,
+    path.resolve('.'),
+    undefined,
+    tsconfigPath
+  );
+  return parsedConfig.options;
+}
+
+const entrypoint = path.resolve('./src/types.ts');
+const program = ts.createProgram(
+  [entrypoint],
+  getCompilerOptions()
+);
+
+const typeChecker = program.getTypeChecker();
+const sourceFile = program.getSourceFile(entrypoint);
+const typeA = unstableTsUtils.getTypeOfExport(sourceFile, 'TypeA', typeChecker);
+```
+
+### Assignability
+
+The API is very simple. For example if you want to check if Typescript type typeB is assignable to typeA, you can use the following function.
+
+```typescript
+import { isAssignableToType } from "@jitl/ts-simple-type";
 
 const isAssignable = isAssignableToType(typeA, typeB, typeChecker);
 ```
 
-## SimpleType
+### SimpleType
 
-To make it easier to work with typescript types this library works by (behind the curtain) converting them to the interface `SimpleType`. Most functions in this library work with both `SimpleType` and the known and loved Typescript-provided `Type` interface. This means that you can easily create a complex type yourself and compare it to a native Typescript type. It also means that you can use this library to serialize types and even compare them in the browser.
+To make it easier to work with typescript types this library works by (behind the curtain) converting them to the interface `SimpleType`. Most functions in this library work with both `SimpleType` and the known and loved Typescript-provided `ts.Type` interface. This means that you can easily create a complex type yourself and compare it to a native Typescript type. It also means that you can use this library to serialize types and even compare them in the browser.
 
 The `SimpleType` interface can be used to construct your own types for typechecking.
 
 ```typescript
-import { SimpleType, typeToString, isAssignableToType, isAssignableToValue } from "ts-simple-type";
+import { SimpleType, typeToString, isAssignableToType, isAssignableToValue } from "@jitl/ts-simple-type";
 
 const colors: SimpleType = {
   kind: "UNION",
@@ -50,19 +92,115 @@ const colors: SimpleType = {
 };
 
 typeToString(colors)
-> "RED" | "GREEN" | "BLUE"
+> `"RED" | "GREEN" | "BLUE"`
 
 isAssignableToType(colors, { kind: "STRING_LITERAL", value: "YELLOW" })
-> false;
+> false
 
 isAssignableToValue(colors, "BLUE")
-> true;
+> true
 
 isAssignableToValue(colors, "PINK")
-> false;
+> false
 ```
 
-## More examples
+### SimpleTypeCompiler
+
+Use `SimpleTypeCompiler` to compile your `SimpleType`s to a target textual format. You can find a full-length example of compiling Typescript types to Python 3 in [compiler.spec](https://github.com/justjake/ts-simple-type/blob/main/test/compiler.spec.ts).
+
+```typescript
+import { SimpleTypeCompiler, Visitor } from "@jitl/ts-simple-type";
+
+const typescriptToC = new SimpleTypeCompiler(typeChecker, compiler => ({
+  // Called by the compiler to compile a SimpleType (`type`) to an AST node.
+  compileType({ type, path, visit }) {
+    const builder = compiler.nodeBuilder(type, path);
+    switch (type.kind) {
+      // Usually types translate directly to the target language,
+      // so your compileType function can return a normal AST node.
+      case "BOOLEAN":
+        return builder.node`bool_t`;
+      case "STRING":
+        return builder.node`char*`;
+      case "BIG_INT":
+        return builder.node`int64_t`;
+      case "NUMBER":
+        return builder.node`double`;
+      // In some cases, we need to map a type to a declaration in the target language.
+      // For this example, we'll map all object-like types to a `typedef struct {}` declaration.
+      case "INTERFACE":
+      case "CLASS":
+      case "OBJECT": {
+        // Declarations are assigned locations in a compiler output file.
+        const declarationLocation = compiler.assignDeclarationLocation(type);
+        const fields = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
+          path,
+          type,
+          visit: visit.with(({ type, path }) => {
+            const builder = compiler.nodeBuilder(type, path);
+            // `path` is a list of steps from a root type to the current type.
+            // In this example, we're mapping over the member types in a object-like Typescript type.
+            const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
+            const member = step.member;
+            // Often, declarations aren't syntactically valid in arbitrary locations.
+            // Instead we refer to declarations by name, and sometimes need an import.
+            // The `builder.reference` function will compiler a *reference* to the target declaration
+            // using your `compileReference` callback.
+            // If the target is not a declaration, it's returned as-is.
+            const memberType = builder.reference(compiler.compileType(type, path));
+            return builder.node`  ${memberType} ${member.name};`;
+          })
+        });
+        const newlineSeparatedFields = builder.node(fields).join("\n");
+        return builder.declaration(
+          declarationLocation,
+          builder.node`typedef struct {\n${newlineSeparatedFields}\n} ${declarationLocation.name};`
+        );
+      }
+      default:
+        throw new Error(`Unsupported type: ${type.kind}`);
+    }
+  },
+  // Called by the compiler to compile a reference to a declaration.
+  // Declaration locations can have a fileName, namespace, and name,
+  // although not all languages need to use these.
+  compileReference({ to }) {
+    const builder = compiler.anonymousNodeBuilder();
+    const isPointerType = builder.isDeclaration(to) && to.type?.kind === "INTERFACE";
+    return builder.node`${to.location.name}${isPointerType ? "*" : ""}`;
+  },
+  // Called by the compiler after compiling all types to AST nodes.
+  // This function is called once per output file to compile any references
+  // that file has to other files, and combine together the declarations in the file.
+  compileFile(file) {
+    const builder = compiler.anonymousNodeBuilder();
+    const includes = Array.from(new Set(file.references.map(ref => ref.fileName)))
+      .filter(fileName => fileName !== file.fileName);
+    return builder.node([
+      ...includes.map(include => builder.node`#include "${include}"`),
+      ...file.nodes
+    ]).join("\n\n");
+  }
+}));
+
+// Run the compiler to produce outputs files.
+// It's up to you to write these to disk, post-process them, etc.
+const { files } = typescriptToC.compileProgram([
+  {
+    inputType: typeA,
+    outputLocation: {
+      fileName: "c/types.h"
+    }
+  }
+]);
+
+for (const [fileName, outputFile] of files) {
+  fs.writeFileSync(fileName, outputFile.text, 'utf8');
+  console.log('source map for ', fileName, ':', outputFile.sourceMap.toString());
+}
+```
+
+### More examples
 
 ```typescript
 const typeA = checker.getTypeAtLocation(nodeA);
@@ -175,3 +313,7 @@ Returns a string representation of the simple type. The string representation ma
 
 Returns a `SimpleType` that represents a native Typescript `Type`.
 
+
+## Project History
+
+This library forked from [github.com/runem/ts-simple-type](https://github.com/runem/ts-simple-type) in July 2022.

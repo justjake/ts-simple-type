@@ -146,7 +146,7 @@ export class SimpleTypeCompiler {
 		return this.withState(
 			{
 				...this.current,
-				outputLocation: outputLocation
+				outputLocation: outputLocation ?? this.current.outputLocation
 			},
 			() => {
 				try {
@@ -197,7 +197,14 @@ export class SimpleTypeCompiler {
 				...this.current,
 				outputLocation: referenceArgs.from
 			},
-			() => this.target.compileReference(referenceArgs)
+			() => {
+				const result = this.target.compileReference(referenceArgs);
+				if (result.constructor === SimpleTypeCompilerNode && result.shouldCache) {
+					const upgrade = this.anonymousNodeBuilder().reference(referenceArgs.to, result);
+					return upgrade;
+				}
+				return result;
+			}
 		);
 	}
 
@@ -500,7 +507,7 @@ export class SimpleTypeCompilerNodeBuilder {
 		return node;
 	}
 
-	isDeclaration(node: SimpleTypeCompilerNode): node is SimpleTypeCompilerDeclarationNode {
+	isDeclaration(node: object): node is SimpleTypeCompilerDeclarationNode {
 		return node instanceof SimpleTypeCompilerDeclarationNode;
 	}
 

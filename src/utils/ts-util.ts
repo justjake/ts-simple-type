@@ -276,7 +276,19 @@ export function isMethodSignature(type: Type, ts: typeof tsModule): boolean {
 	return decl.kind === ts.SyntaxKind.MethodSignature;
 }
 
-export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker, _ts: typeof tsModule): Type {
+export function getTypeOfExport(checker: TypeChecker, sourceFileOrModuleSymbol: ts.SourceFile | ts.Symbol, exportName: string): Type | undefined {
+	const moduleSymbol = isSymbol(sourceFileOrModuleSymbol) ? sourceFileOrModuleSymbol : checker.getSymbolAtLocation(sourceFileOrModuleSymbol);
+	if (!moduleSymbol) {
+		throw new Error(`No symbol found for this ts.SourceFile. Did this come from the same ts.Program as the ts.TypeChecker?`);
+	}
+
+	const exportedSymbol = checker.tryGetMemberInModuleExports(exportName, moduleSymbol);
+	if (exportedSymbol) {
+		return getTypeOfSymbol(exportedSymbol, checker);
+	}
+}
+
+export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker): Type {
 	const checker = publicChecker as TypeCheckerInternal;
 	if (checker.getTypeOfSymbol) {
 		return checker.getTypeOfSymbol(symbol);

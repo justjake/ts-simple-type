@@ -1,18 +1,27 @@
 {
-	"name": "ts-simple-type",
+	"name": "@jitl/ts-simple-type",
 	"version": "2.0.0-next.0",
-	"description": "Relationship type checker functions for Typescript types.",
-	"author": "runem",
+	"description": "Static analysis and compiler framework for TypeScript types",
+	"contributors": [
+		{
+			"name": "Jake Teton-Landis",
+			"url": "https://jake.tl"
+		},
+		"rumen"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/runem/ts-simple-type.git"
+		"url": "https://github.com/justjake/ts-simple-type.git"
 	},
 	"keywords": [
 		"typescript",
 		"ast",
 		"typechecker",
-		"type"
+		"type",
+		"compiler",
+		"codegen",
+		"code generator"
 	],
 	"scripts": {
 		"playground": "ts-node run-playground.ts",

@@ -326,3 +326,104 @@ test("assignDeclarationLocation: same location with different type gives unique 
 	ctx.not(name1.name, name2.name);
 	ctx.true(SimpleTypeCompilerLocation.fileAndNamespaceEqual(name1, name2));
 });
+
+test("README example: Typescript to C", ctx => {
+	const { types, typeChecker } = getTestTypes(
+		["TypeA"],
+		`
+export interface TypeA {
+	name: string;
+	workplace: Location;
+}
+
+interface Location {
+	id: bigint;
+	title: string;
+	description: string;
+	lat: number;
+	lng: number;
+}
+	`
+	);
+	const typeA = types.TypeA;
+
+	const typescriptToC = new SimpleTypeCompiler(typeChecker, compiler => ({
+		// Called by the compiler to compile a SimpleType (`type`) to an AST node.
+		compileType({ type, path, visit }) {
+			const builder = compiler.nodeBuilder(type, path);
+			switch (type.kind) {
+				// Usually types translate directly to the target language,
+				// so your compileType function can return a normal AST node.
+				case "BOOLEAN":
+					return builder.node`bool_t`;
+				case "STRING":
+					return builder.node`char*`;
+				case "BIG_INT":
+					return builder.node`int64_t`;
+				case "NUMBER":
+					return builder.node`double`;
+				// In some cases, we need to map a type to a declaration in the target language.
+				// For this example, we'll map all object-like types to a `typedef struct {}` declaration.
+				case "INTERFACE":
+				case "CLASS":
+				case "OBJECT": {
+					// Declarations are assigned locations in a compiler output file.
+					const declarationLocation = compiler.assignDeclarationLocation(type);
+					const fields = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
+						path,
+						type,
+						visit: visit.with(({ type, path }) => {
+							const builder = compiler.nodeBuilder(type, path);
+							// `path` is a list of steps from a root type to the current type.
+							// In this example, we're mapping over the member types in a object-like Typescript type.
+							const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
+							const member = step.member;
+							// Often, declarations aren't syntactically valid in arbitrary locations.
+							// Instead we refer to declarations by name, and sometimes need an import.
+							// The `builder.reference` function will compiler a *reference* to the target declaration
+							// using your `compileReference` callback.
+							// If the target is not a declaration, it's returned as-is.
+							const memberType = builder.reference(compiler.compileType(type, path));
+							return builder.node`  ${memberType} ${member.name};`;
+						})
+					});
+					const newlineSeparatedFields = builder.node(fields).join("\n");
+					return builder.declaration(declarationLocation, builder.node`typedef struct {\n${newlineSeparatedFields}\n} ${declarationLocation.name};`);
+				}
+				default:
+					throw new Error(`Unsupported type: ${type.kind}`);
+			}
+		},
+		// Called by the compiler to compile a reference to a declaration.
+		// Declaration locations can have a fileName, namespace, and name,
+		// although not all languages need to use these.
+		compileReference({ to }) {
+			const builder = compiler.anonymousNodeBuilder();
+			const isPointerType = builder.isDeclaration(to) && to.type?.kind === "INTERFACE";
+			return builder.node`${to.location.name}${isPointerType ? "*" : ""}`;
+		},
+		// Called by the compiler after compiling all types to AST nodes.
+		// This function is called once per output file to compile any references
+		// that file has to other files, and combine together the declarations in the file.
+		compileFile(file) {
+			const builder = compiler.anonymousNodeBuilder();
+			const includes = Array.from(new Set(file.references.map(ref => ref.fileName))).filter(fileName => fileName !== file.fileName);
+			return builder.node([...includes.map(include => builder.node`#include "${include}"`), ...file.nodes]).join("\n\n");
+		}
+	}));
+
+	// Run the compiler to produce outputs files.
+	// It's up to you to write these to disk, post-process them, etc.
+	const { files } = typescriptToC.compileProgram([
+		{
+			inputType: typeA,
+			outputLocation: {
+				fileName: "c/types.h"
+			}
+		}
+	]);
+
+	for (const [fileName, outputFile] of files) {
+		ctx.snapshot(outputFile.text, fileName);
+	}
+});

@@ -1,4 +1,5 @@
 import * as ts from "typescript";
+import { getModuleExport, getTypeOfTypeSymbol } from "../../src/utils/ts-util";
 import { ITestFile, programWithVirtualFiles } from "./analyze-text";
 
 export function getTestTypes<TypeNames extends string>(
@@ -21,7 +22,6 @@ export function getTestTypes<TypeNames extends string>(
 	});
 	const [sourceFile] = program.getSourceFiles().filter(f => f.fileName.includes(testFile.fileName));
 	const typeChecker = program.getTypeChecker();
-	const moduleSymbol = typeChecker.getSymbolAtLocation(sourceFile)!;
 	const result = {
 		types: {} as Record<TypeNames, ts.Type>,
 		program,
@@ -29,8 +29,8 @@ export function getTestTypes<TypeNames extends string>(
 	};
 
 	for (const name of typeNames) {
-		const symbol = assert(moduleSymbol.exports?.get(name as ts.__String), `${name} symbol`);
-		const type = typeChecker.getDeclaredTypeOfSymbol(symbol);
+		const symbol = assert(getModuleExport(sourceFile, name, typeChecker), `export exists: ${name}`);
+		const type = getTypeOfTypeSymbol(symbol, typeChecker);
 		result.types[name] = type;
 	}
 	return result;

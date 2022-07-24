@@ -45,7 +45,8 @@ export interface Annotation {
   type: AnnotationType
   start: number
   end: number
-  data: unknown
+  unknownData: unknown
+  anyData: any
 }
 
 type Position = {
@@ -68,7 +69,6 @@ export interface Document {
   author: string
   body: Array<AliasedType>
 }
-
 `;
 
 test("Compiler example: compile to Python", ctx => {

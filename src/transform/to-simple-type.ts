@@ -6,6 +6,7 @@ import { DEFAULT_TYPE_CACHE } from "../constants";
 import {
 	isSimpleType,
 	SimpleType,
+	SimpleTypeAny,
 	SimpleTypeEnumMember,
 	SimpleTypeFunction,
 	SimpleTypeFunctionParameter,
@@ -25,8 +26,9 @@ import {
 	getDeclaration,
 	getModifiersFromDeclaration,
 	getTypeArguments,
-	getTypeOfSymbol,
+	getTypeOfValueSymbol,
 	isAlias,
+	isAny,
 	isArray,
 	isBigInt,
 	isBigIntLiteral,
@@ -54,6 +56,7 @@ import {
 	isThisType,
 	isTupleTypeReference,
 	isType,
+	isTypeErrorType,
 	isUndefined,
 	isUniqueESSymbol,
 	isUnknown,
@@ -416,7 +419,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			const declaration = getDeclaration(symbol, ts);
 			const result: Writable<SimpleTypeMemberNamed> = {
 				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker), options)
+				type: toSimpleTypeCached(getTypeOfValueSymbol(symbol, options.checker), options)
 			};
 
 			if (symbolIsOptional(symbol, ts)) {
@@ -562,7 +565,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			const declaration = getDeclaration(symbol, ts);
 			const result: Writable<SimpleTypeMemberNamed> = {
 				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfSymbol(symbol, options.checker), options)
+				type: toSimpleTypeCached(getTypeOfValueSymbol(symbol, options.checker), options)
 			};
 
 			if (symbolIsOptional(symbol, ts)) {
@@ -660,13 +663,22 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			default: defaultSimpleType,
 			constraint: constraintSimpleType
 		} as SimpleTypeGenericParameter;
+	} else if (isAny(type, ts)) {
+		const result: Writable<SimpleTypeAny> = {
+			kind: "ANY",
+			name
+		};
+		if (isTypeErrorType(type, checker)) {
+			result.error = `Typescript type check error`;
+		}
+		simpleType = result;
 	}
 
 	// If no type was found, return "ANY"
 	if (simpleType == null) {
 		simpleType = {
 			kind: "ANY",
-			error: "Not supported",
+			error: "Not understood by ts-simple-type",
 			name
 		};
 	}

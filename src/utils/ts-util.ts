@@ -276,25 +276,25 @@ export function isMethodSignature(type: Type, ts: typeof tsModule): boolean {
 	return decl.kind === ts.SyntaxKind.MethodSignature;
 }
 
-export function getTypeOfExport(checker: TypeChecker, sourceFileOrModuleSymbol: ts.SourceFile | ts.Symbol, exportName: string): Type | undefined {
+export function getModuleSymbol(sourceFileOrModuleSymbol: ts.SourceFile | ts.Symbol, checker: ts.TypeChecker): ts.Symbol {
 	const moduleSymbol = isSymbol(sourceFileOrModuleSymbol) ? sourceFileOrModuleSymbol : checker.getSymbolAtLocation(sourceFileOrModuleSymbol);
 	if (!moduleSymbol) {
 		throw new Error(`No symbol found for this ts.SourceFile. Did this come from the same ts.Program as the ts.TypeChecker?`);
 	}
-
-	const exportedSymbol = checker.tryGetMemberInModuleExports(exportName, moduleSymbol);
-	if (exportedSymbol) {
-		return getTypeOfSymbol(exportedSymbol, checker);
-	}
+	return moduleSymbol;
 }
 
-export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker): Type {
-	const checker = publicChecker as TypeCheckerInternal;
-	if (checker.getTypeOfSymbol) {
-		return checker.getTypeOfSymbol(symbol);
+export function getTypeOfTypeSymbol(symbol: ts.Symbol, checker: ts.TypeChecker) {
+	return checker.getDeclaredTypeOfSymbol(symbol);
+}
+
+export function getTypeOfValueSymbol(symbol: ts.Symbol, checker: ts.TypeChecker) {
+	const internalChecker = checker as TypeCheckerInternal;
+	if (internalChecker.getTypeOfSymbol) {
+		return internalChecker.getTypeOfSymbol(symbol);
 	}
 
-	const walker = checker.getSymbolWalker(sym => sym === symbol);
+	const walker = internalChecker.getSymbolWalker(sym => sym === symbol);
 	const { visitedTypes } = walker.walkSymbol(symbol);
 	if (visitedTypes.length === 0) {
 		throw new Error(`No types walked for symbol '${symbol.getName()}'`);
@@ -310,6 +310,11 @@ export function getTypeOfSymbol(symbol: ts.Symbol, publicChecker: TypeChecker): 
 		}
 	}
 	return maxType;
+}
+
+export function getModuleExport(sourceFileOrModuleSymbol: ts.SourceFile | ts.Symbol, exportName: string, checker: ts.TypeChecker): ts.Symbol | undefined {
+	const moduleSymbol = getModuleSymbol(sourceFileOrModuleSymbol, checker);
+	return checker.tryGetMemberInModuleExports(exportName, moduleSymbol);
 }
 
 export function symbolIsOptional(sym: Symbol, ts: typeof tsModule): boolean {
@@ -371,4 +376,19 @@ export function getDiscriminantPropertiesOfType(type: ts.UnionType): ts.Symbol[]
 
 	const discriminants = type.getProperties().filter(isDiscriminantProperty);
 	return discriminants.length ? discriminants : undefined;
+}
+
+export function isTypeErrorType(type: ts.Type, checker: ts.TypeChecker): boolean {
+	return type === getTypeCheckErrorType(checker);
+}
+
+/**
+ * If you ask for a type that doesn't make sense, or the type of a symbol that has errors,
+ * the checker will return a type that means "any", but actually indicates an error.
+ *
+ * There's no public API to check for that special "any (type error)" type, but
+ * we can fetch it easily.
+ */
+export function getTypeCheckErrorType(checker: ts.TypeChecker): ts.Type {
+	return checker.getTypeOfSymbolAtLocation(undefined as never, undefined as never);
 }

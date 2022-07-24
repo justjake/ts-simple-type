@@ -12,9 +12,9 @@ Typescript's API for analyzing types is verbose and confusing. There's no public
 See issue [#9879](https://github.com/Microsoft/TypeScript/issues/9879) and [#29432](https://github.com/Microsoft/TypeScript/issues/29432) on the Typescript github repository.
 Typescript also famously avoids emitting any code based on type level information.
 
-This library has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/justjake/ts-simple-type/blob/master/test-types/test-types.ts)).
-
 There are many libraries that claim to convert your Typescript types to other formats, such as [ts-json-schema-generator](https://github.com/vega/ts-json-schema-generator), [ts-to-zod](https://github.com/fabien0102/ts-to-zod), or [typeconv](https://github.com/grantila/typeconv/)/[core-types-ts](https://github.com/grantila/core-types-ts). These libraries work by *interpreting the Typescript AST*, essentially re-implementing a bare-bones type system from scratch. Most do not support advanced Typescript features like generic application, mapped types, or string literal types. `@jitl/ts-simple-type` avoids these limitations by using Typescript's first-party `ts.TypeChecker` API to analyze types. This library is focused on the *semantic meaning* of your types, not on how they are *syntactically declared*.
+
+Our `isAssignableToType` function has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/justjake/ts-simple-type/blob/master/test-types/test-types.ts)).
 
 ## Installation
 
@@ -27,7 +27,7 @@ npm install @jitl/ts-simple-type
 ### Setting up the Typescript compiler API
 
 To use ts-simple-type, we first need to use the Typescript compiler API to build
-a "program" to parse code and compute types. We'll pass a list of the files we care about to the program, and then retrieve its TypeChecker.
+a "program" to parse our code and compute types. We'll pass a list of the files we care about to the program, and then retrieve its TypeChecker.
 
 Then, we'll retrieve types using the program's TypeChecker, so we can analyze those types with `@jitl/ts-simple-type`.
 
@@ -60,7 +60,10 @@ const program = ts.createProgram(
 
 const typeChecker = program.getTypeChecker();
 const sourceFile = program.getSourceFile(entrypoint);
-const typeA = unstableTsUtils.getTypeOfExport(sourceFile, 'TypeA', typeChecker);
+const exportedTypeSymbol = unstableTsUtils.getModuleExport(sourceFile, 'TypeA', typeChecker);
+const exportedValueSymbol = unstableTsUtils.getModuleExport(sourceFile, 'CONSTANT_B', typeChecker);
+const typeA = unstableTsUtils.getTypeOfTypeSymbol(exportedTypeSymbol, typeChecker);
+const typeB = unstableTsUtils.getTypeOfValueSymbol(exportedValueSymbol, typeChecker);
 ```
 
 ### Assignability

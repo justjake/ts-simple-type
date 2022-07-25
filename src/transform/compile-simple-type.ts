@@ -661,7 +661,7 @@ class SimpleTypeCompilerProgram {
 	}
 }
 
-class SimpleTypeCompilerTargetFile {
+export class SimpleTypeCompilerTargetFile {
 	constructor(public fileName: string) {}
 
 	private _references = new Map<string, SimpleTypeCompilerDeclarationLocation>();
@@ -725,5 +725,5 @@ export interface SimpleTypeCompilerTarget {
 	/**
 	 * Compile a file that contains one or more declarations.
 	 */
-	compileFile: (file: SimpleTypeCompilerTargetFile) => SimpleTypeCompilerNode;
+	compileFile(file: SimpleTypeCompilerTargetFile): SimpleTypeCompilerNode;
 }

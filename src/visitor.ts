@@ -71,16 +71,16 @@ interface VisitChild<T, Step extends SimpleTypePath | SimpleTypePath[number] | u
 	with<R>(fn: Visitor<R>): VisitChild<R>;
 }
 
-export interface VisitFnArgs<T, ST extends SimpleType = SimpleType, Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined> {
+export interface VisitorArgs<T, ST extends SimpleType = SimpleType, Step extends SimpleTypePath | SimpleTypePath[number] | undefined = SimpleTypePath | SimpleTypePath[number] | undefined> {
 	type: ST;
 	path: SimpleTypePath;
 	visit: VisitChild<T, Step>;
 }
 
-export type Visitor<T, ST extends SimpleType = SimpleType> = (args: VisitFnArgs<T, ST>) => T;
-export type GenericVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => T;
-export type GenericMaybeVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => T | undefined;
-export type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitFnArgs<T, TypeKind, StepKind>) => Array<T>;
+export type Visitor<T, ST extends SimpleType = SimpleType> = (args: VisitorArgs<T, ST>) => T;
+export type GenericVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitorArgs<T, TypeKind, StepKind>) => T;
+export type GenericMaybeVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitorArgs<T, TypeKind, StepKind>) => T | undefined;
+export type GenericListVisitor<TypeKind extends SimpleType, StepKind extends SimpleTypePathStep> = <T>(args: VisitorArgs<T, TypeKind, StepKind>) => Array<T>;
 
 function makeVisitChildFn<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): VisitChild<T> {
 	const visit: VisitChild<T> = function visit(step: SimpleTypePath | SimpleTypePath[number] | undefined, childType: SimpleType, childFn?: Visitor<T>) {
@@ -99,7 +99,7 @@ const ALREADY_ANNOTATED_ERROR_WITH_PATH = new WeakSet<Error>();
  * @returns result of `fn`
  */
 export function walkRecursive<T>(path: SimpleTypePath, type: SimpleType, fn: Visitor<T>): T {
-	const args: VisitFnArgs<T> = {
+	const args: VisitorArgs<T> = {
 		path,
 		type,
 		visit: makeVisitChildFn(path, type, fn)

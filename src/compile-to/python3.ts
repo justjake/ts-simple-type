@@ -4,6 +4,7 @@ import { isSimpleTypeLiteral, SimpleType, SimpleTypeClass, SimpleTypeFunction, S
 import { SimpleTypePath, SimpleTypePathStepNamedMember } from "../simple-type-path";
 import {
 	SimpleTypeCompiler,
+	SimpleTypeCompilerDeclarationNode,
 	SimpleTypeCompilerLocation,
 	SimpleTypeCompilerNode,
 	SimpleTypeCompilerNodeBuilder,
@@ -14,7 +15,7 @@ import {
 } from "../transform/compile-simple-type";
 import { toNullableSimpleType } from "../transform/inspect-simple-type";
 import { simpleTypeToString } from "../transform/simple-type-to-string";
-import { SimpleTypeKindVisitors, VisitFnArgs, Visitor } from "../visitor";
+import { SimpleTypeKindVisitors, VisitorArgs, Visitor } from "../visitor";
 
 /**
  * Compiles types to Python3.
@@ -37,7 +38,12 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 			throw new ReferenceError(`SimpleType kind ${type.kind} has no compiler defined`);
 		}
 
-		return compileTypeKind({ type: type as never, path, visit });
+		const typeExpression = compileTypeKind({ type: type as never, path, visit });
+		if (this.compiler.isExportedFromSourceLocation(args.type)) {
+			return this.toTypeAliasDeclaration(args, typeExpression);
+		} else {
+			return typeExpression;
+		}
 	};
 
 	compileReference(args: SimpleTypeCompilerReferenceArgs): SimpleTypeCompilerNode {
@@ -75,7 +81,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 	}
 
 	withBuilder = <ST extends SimpleType>(
-		visitor: (args: VisitFnArgs<SimpleTypeCompilerNode, ST> & { builder: SimpleTypeCompilerNodeBuilder }) => SimpleTypeCompilerNode
+		visitor: (args: VisitorArgs<SimpleTypeCompilerNode, ST> & { builder: SimpleTypeCompilerNodeBuilder }) => SimpleTypeCompilerNode
 	): Visitor<SimpleTypeCompilerNode, ST> => {
 		return args => {
 			const builder = this.compiler.nodeBuilder(args.type, args.path);
@@ -94,14 +100,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 	compileNone = this.withBuilder(({ builder }) => builder.node`None`);
 
 	compileObjectLike: Visitor<SimpleTypeCompilerNode, SimpleTypeObject | SimpleTypeClass | SimpleTypeInterface> = this.withBuilder(({ builder, type, path, visit }) => {
-		const name = this.compiler.assignDeclarationLocation(
-			type,
-			type.name
-				? undefined
-				: {
-						fileName: "editor/generated.py"
-				  }
-		);
+		const name = this.compiler.assignDeclarationLocation(type);
 		const members = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
 			path,
 			type,
@@ -126,6 +125,16 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 			`]`
 		]);
 	});
+
+	toTypeAliasDeclaration(args: VisitorArgs<SimpleTypeCompilerNode>, inner: SimpleTypeCompilerNode): SimpleTypeCompilerNode {
+		if (inner instanceof SimpleTypeCompilerReferenceNode || inner instanceof SimpleTypeCompilerDeclarationNode) {
+			return inner;
+		}
+
+		const builder = this.compiler.nodeBuilder(args.type, args.path);
+		const declarationLocation = this.compiler.assignDeclarationLocation(args.type);
+		return builder.declaration(declarationLocation, builder.node`${declarationLocation.name} = ${inner}`);
+	}
 
 	throwUnsupported: Visitor<SimpleTypeCompilerNode> = ({ type }) => {
 		throw new Error(`Unsupported SimpleType kind: ${type.kind}`);
@@ -224,8 +233,8 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 					return builder.node([`    ${type.name} = `, JSON.stringify(type.type.value)]);
 				})
 			});
-			const enumReference = this.stdlibReference(builder, "enum", "Enum");
-			return builder.declaration(name, [`class ${name.name}(`, enumReference, `):\n`, builder.node(members).join("\n")]);
+			const Enum = this.stdlibReference(builder, "enum", "Enum");
+			return builder.declaration(name, [`class ${name.name}(`, Enum, `):\n`, builder.node(members).join("\n")]);
 		}),
 		ENUM_MEMBER: this.withBuilder(({ builder, type }) => {
 			// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be

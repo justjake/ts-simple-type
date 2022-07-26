@@ -1,7 +1,7 @@
 import test from "ava";
 import { SimpleTypePath } from "../src/simple-type-path";
 import { toSimpleType } from "../src/transform/to-simple-type";
-import { VisitFnArgs, Visitor, walkDepthFirst } from "../src/visitor";
+import { VisitorArgs, Visitor, walkDepthFirst } from "../src/visitor";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TYPES = `
@@ -36,7 +36,7 @@ test("visitDepthFirst", ctx => {
 		cache: new WeakMap()
 	});
 
-	const toStrings = (args: VisitFnArgs<void>) =>
+	const toStrings = (args: VisitorArgs<void>) =>
 		`
 toString:     ${SimpleTypePath.toString(args.path, args.type)}
 toTypescript: ${SimpleTypePath.toTypescript(args.path)}

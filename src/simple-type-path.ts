@@ -1,4 +1,4 @@
-import { SimpleType, SimpleTypeFunctionParameter, SimpleTypeMember, SimpleTypeMemberNamed } from "./simple-type";
+import { SimpleType, SimpleTypeFunctionParameter, SimpleTypeMemberIndexed, SimpleTypeMemberNamed } from "./simple-type";
 import { simpleTypeToString } from "./transform/simple-type-to-string";
 
 type SimpleTypePathStepKind =
@@ -32,7 +32,7 @@ export interface SimpleTypePathStepNamedMember extends SimpleTypePathStepBase {
 
 export interface SimpleTypePathStepIndexedMember extends SimpleTypePathStepBase {
 	step: "INDEXED_MEMBER";
-	member: SimpleTypeMember;
+	member: SimpleTypeMemberIndexed;
 	index: number;
 }
 

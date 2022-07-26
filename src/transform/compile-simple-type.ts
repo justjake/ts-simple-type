@@ -12,10 +12,17 @@ import { Visitor, walkRecursive } from "../visitor";
 import { toSimpleType, ToSimpleTypeOptions } from "./to-simple-type";
 
 const NO_SOURCE_LOCATION_FOUND = {
-	source: null,
-	sourceContent: null,
-	line: null,
-	column: null
+	typescript: undefined,
+	sourceMap: {
+		source: null,
+		sourceContent: null,
+		line: null,
+		column: null
+	}
+};
+
+const NO_DESTINATION_LOCATION: SimpleTypeCompilerLocation = {
+	fileName: ""
 };
 
 type Chunks = Array<string | SourceNode> | SourceNode | string;
@@ -302,6 +309,19 @@ export class SimpleTypeCompiler {
 		return name ?? snakeCaseToCamelCase(`ANONYMOUS_${rootType.kind}`);
 	}
 
+	getSourceLocation = getSourceLocationOfSimpleType;
+
+	isExportedFromSourceLocation(type: SimpleType): boolean {
+		const { typescript } = getSourceLocationOfSimpleType(type);
+		if (!typescript) {
+			return false;
+		}
+
+		const exportedSymbol = typescript.checker.getExportSymbolOfSymbol(typescript.symbol);
+		const moduleSymbol = typescript.checker.getSymbolAtLocation(typescript.sourceFile);
+		return Boolean(moduleSymbol && typescript.checker.getExportsOfModule(moduleSymbol).includes(exportedSymbol));
+	}
+
 	/**
 	 * Assign a declaration location in the output program to the given `type`.
 	 * If the type already has an assigned declaration location, it's returned instead.
@@ -322,10 +342,18 @@ export class SimpleTypeCompiler {
 			return existingLocationForType;
 		}
 
+		const currentFilenameNamespace: SimpleTypeCompilerLocation | undefined = this.current.outputLocation && {
+			fileName: this.current.outputLocation.fileName,
+			namespace: this.current.outputLocation.namespace
+		};
+
+		const suggestedLocation: SimpleTypeCompilerLocation & { name?: string } =
+			location ?? this.target.suggestDeclarationLocation?.(type, currentFilenameNamespace ?? NO_DESTINATION_LOCATION) ?? currentFilenameNamespace ?? NO_DESTINATION_LOCATION;
+
 		const maybeUniqueLocation: SimpleTypeCompilerDeclarationLocation = {
-			name: location?.name ?? this.inferTypeName(type),
-			fileName: location ? location.fileName : this.current.outputLocation?.fileName ?? "",
-			namespace: location ? location.namespace : this.current.outputLocation?.namespace
+			name: suggestedLocation.name ?? this.inferTypeName(type),
+			fileName: suggestedLocation.fileName,
+			namespace: suggestedLocation.namespace
 		};
 
 		const count = this.current.program.getDeclarationLocationCount(maybeUniqueLocation);
@@ -395,20 +423,27 @@ function getSourceLocationOfSimpleType(type: SimpleType) {
 		return NO_SOURCE_LOCATION_FOUND;
 	}
 
-	const decl = symbol.getDeclarations();
-	if (!decl || decl.length === 0) {
+	const node = symbol.getDeclarations()?.[0] || symbol.valueDeclaration;
+	if (!node) {
 		return NO_SOURCE_LOCATION_FOUND;
 	}
 
-	const node = decl[0];
 	const sourceFile = node.getSourceFile();
 	const ts = getTypescriptModule();
 	const loc = ts.getLineAndCharacterOfPosition(sourceFile, node.getStart());
 	return {
-		column: loc.character,
-		line: loc.line,
-		source: sourceFile.fileName,
-		sourceContent: sourceFile.text
+		typescript: {
+			...typescriptType,
+			symbol,
+			declaration: node,
+			sourceFile
+		},
+		sourceMap: {
+			column: loc.character,
+			line: loc.line,
+			source: sourceFile.fileName,
+			sourceContent: sourceFile.text
+		}
 	};
 }
 
@@ -533,7 +568,7 @@ interface SimpleTypeCompilerNodeConstructors<T> extends SourceNodeConstructor<T>
 
 export class SimpleTypeCompilerNode extends SourceNode {
 	static forType<T extends SimpleTypeCompilerNode>(this: SourceNodeConstructor<T>, type: SimpleType, path: SimpleTypePath, chunks: Chunks): T {
-		const location = getSourceLocationOfSimpleType(type);
+		const location = getSourceLocationOfSimpleType(type).sourceMap;
 		const node = new this(location.line, location.column, location.source, chunks);
 		node.type = type;
 		node.path = path;
@@ -726,4 +761,15 @@ export interface SimpleTypeCompilerTarget {
 	 * Compile a file that contains one or more declarations.
 	 */
 	compileFile(file: SimpleTypeCompilerTargetFile): SimpleTypeCompilerNode;
+
+	/**
+	 * Called by the type compiler in {@link SimpleTypeCompiler#assignDeclarationLocation}.
+	 *
+	 * Assign a destination file and namespace to a type when it's compiled to declaration node.
+	 * If you have no opinion about the placement of this type, you can return `from` - which will place it in the current file and namespace.
+	 *
+	 * @param type The type to assign a destination declaration location to.
+	 * @param from The current file and namespace we are compiling from.
+	 */
+	suggestDeclarationLocation?: (type: SimpleType, from: SimpleTypeCompilerLocation) => SimpleTypeCompilerLocation | SimpleTypeCompilerDeclarationLocation;
 }

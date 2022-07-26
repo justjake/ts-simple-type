@@ -1,8 +1,8 @@
 import test from "ava";
 import { RawSourceMap } from "source-map";
-import { SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } from "../src";
+import { SimpleType, SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } from "../src";
 import { PythonCompilerTarget } from "../src/compile-to/python3";
-import { SimpleTypeCompiler, SimpleTypeCompilerLocation, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
+import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compile-simple-type";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TS = `
@@ -23,7 +23,7 @@ enum AnnotationType {
 	Code
 }
 
-type AliasedType = Text | Table
+export type DocumentBlock = Text | Table
 
 export interface Table {
   header: string[]
@@ -65,14 +65,26 @@ export interface Document {
 	parent: RecordPointer
   title: string
   author: string
-  body: Array<AliasedType>
+  body: Array<DocumentBlock>
 }
 `;
 
 test("Compiler example: compile to Python", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 
-	const compiler = PythonCompilerTarget.createCompiler(typeChecker);
+	class TestPythonTarget extends PythonCompilerTarget implements SimpleTypeCompilerTarget {
+		suggestDeclarationLocation(type: SimpleType, from: SimpleTypeCompilerLocation): SimpleTypeCompilerLocation | SimpleTypeCompilerDeclarationLocation {
+			const name = this.compiler.inferTypeName(type);
+			if (name.includes("Anonymous")) {
+				return {
+					fileName: "editor/generated.py"
+				};
+			}
+			return from;
+		}
+	}
+
+	const compiler = TestPythonTarget.createCompiler(typeChecker);
 
 	const outputs = compiler.compileProgram([
 		{
@@ -189,7 +201,7 @@ interface Location {
 							// The `builder.reference` function will compiler a *reference* to the target declaration
 							// using your `compileReference` callback.
 							// If the target is not a declaration, it's returned as-is.
-							const memberType = builder.reference(compiler.compileType(type, path));
+							const memberType = builder.reference(compiler.compileType(type, path, declarationLocation));
 							return builder.node`  ${memberType} ${member.name};`;
 						})
 					});

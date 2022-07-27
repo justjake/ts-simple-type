@@ -16,6 +16,7 @@ type RecordPointer<T extends DBTable = DBTable> = T extends 'space' ?
 	{ table: T; id: string } :
 	{ table: T; id: string; spaceId: string }
 
+// Forcing an anonymous type for testing purpose.
 type TableModal<T extends DBTable = DBTable> = T extends 'space'
 	? { open: false }
 	: ({ open: true, view: string } | { open: false })
@@ -28,12 +29,14 @@ enum AnnotationType {
 	Code
 }
 
+/** Blocks allowed in a document. */
 export type DocumentBlock = Text | Table
 
 export interface Table {
   header: string[]
   rows: string[][]
 	parent: RecordPointer<'block'>
+	/** @deprecated */
 	modal: TableModal<'block'>
 	rect?: Rect
 }
@@ -67,15 +70,28 @@ type Dimension = {
 
 type Rect = Position & Dimension
 
+/** A persisted document in our database */
 export interface Document {
 	parent: RecordPointer
+	/** Title of the document */
   title: string
+	/** Author's email */
   author: string
   body: Array<DocumentBlock>
 }
 `;
 
-test("Compiler example: compile to Python", ctx => {
+test("Show input Typescript used in tests", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+	const compiler = new SimpleTypeCompiler(typeChecker, () => {
+		return {} as any;
+	});
+
+	const location = compiler.getSourceLocation(compiler.toSimpleType(types.Document));
+	ctx.snapshot(location.sourceMap.sourceContent, "test.ts");
+});
+
+test("compile-to/python3: compile test.ts to Python with custom declaration routing", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 
 	class TestPythonTarget extends PythonCompilerTarget implements SimpleTypeCompilerTarget {
@@ -114,7 +130,7 @@ test("Compiler example: compile to Python", ctx => {
 	ctx.snapshot(outputs.files.size, "output count");
 });
 
-test("assignDeclarationLocation: same location = same name", ctx => {
+test("SimpleTypeCompiler#assignDeclarationLocation: same location = same name", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 	const compiler = new SimpleTypeCompiler(typeChecker, () => {
 		return {} as any;
@@ -131,7 +147,7 @@ test("assignDeclarationLocation: same location = same name", ctx => {
 	ctx.is(name, name3);
 });
 
-test("assignDeclarationLocation: same location with different type gives unique names", ctx => {
+test("SimpleTypeCompiler#assignDeclarationLocation: same location with different type gives unique names", ctx => {
 	const one = getTestTypes(["Document"], EXAMPLE_TS);
 	const two = getTestTypes(["Document"], EXAMPLE_TS);
 	const compiler1 = new SimpleTypeCompiler(one.typeChecker, () => {
@@ -148,6 +164,34 @@ test("assignDeclarationLocation: same location with different type gives unique 
 
 	ctx.not(name1.name, name2.name);
 	ctx.true(SimpleTypeCompilerLocation.fileAndNamespaceEqual(name1, name2));
+});
+
+test("compile-to/thrift: Compile test.ts to thrift", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = ThriftCompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "thrift/schema.thrift"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
 });
 
 test("README example: Typescript to C", ctx => {
@@ -249,32 +293,4 @@ interface Location {
 	for (const [fileName, outputFile] of files) {
 		ctx.snapshot(outputFile.text, fileName);
 	}
-});
-
-test("Compiler example: compile to Thrift", ctx => {
-	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
-
-	const compiler = ThriftCompilerTarget.createCompiler(typeChecker);
-
-	const outputs = compiler.compileProgram([
-		{
-			inputType: types.Document,
-			outputLocation: {
-				fileName: "thrift/schema.thrift"
-			}
-		}
-	]);
-
-	for (const [fileName, output] of outputs.files) {
-		ctx.snapshot(output.text, fileName);
-		const map = output.sourceMap.toJSON();
-		const snapshotSourceMap: RawSourceMap = {
-			...map,
-			sources: map.sources.map((s, i) => `source ${i}`),
-			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
-		};
-		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
-	}
-
-	ctx.snapshot(outputs.files.size, "output count");
 });

@@ -1,5 +1,5 @@
 import * as path from "path";
-import * as ts from "typescript";
+import type * as ts from "typescript";
 import { isSimpleTypeLiteral, SimpleType, SimpleTypeClass, SimpleTypeInterface, SimpleTypeKind, SimpleTypeLiteral, SimpleTypeObject } from "../simple-type";
 import { SimpleTypePath } from "../simple-type-path";
 import {
@@ -15,6 +15,7 @@ import {
 } from "../transform/compiler";
 import { toEnumTaggedUnion, toNullableSimpleType } from "../transform/inspect-simple-type";
 import { simpleTypeToString } from "../transform/simple-type-to-string";
+import { getTypescriptModule } from "../ts-module";
 import { SimpleTypeKindVisitors, Visitor, VisitorArgs } from "../visitor";
 
 /**
@@ -106,7 +107,7 @@ export class ThriftCompilerTarget implements SimpleTypeCompilerTarget {
 				})
 			);
 
-			return builder.declaration(loc, builder.node`struct ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`);
+			return builder.declaration(loc, this.withDeclarationDocComment(type, path, builder.node`struct ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`));
 		});
 	};
 
@@ -117,7 +118,7 @@ export class ThriftCompilerTarget implements SimpleTypeCompilerTarget {
 
 		const builder = this.compiler.nodeBuilder(args.type, args.path);
 		const declarationLocation = this.compiler.assignDeclarationLocation(args.type, args.path);
-		return builder.declaration(declarationLocation, builder.node`typedef ${inner} ${declarationLocation.name}`);
+		return builder.declaration(declarationLocation, this.withDeclarationDocComment(args.type, args.path, builder.node`typedef ${inner} ${declarationLocation.name}`));
 	}
 
 	throwUnsupported: Visitor<SimpleTypeCompilerNode> = ({ type }) => {
@@ -166,8 +167,49 @@ export class ThriftCompilerTarget implements SimpleTypeCompilerTarget {
 		};
 		const location = this.compiler.createUniqueLocation(type, path, namespace);
 
-		return builder.node`  ${String(step.index)}: ${optional ? "optional " : ""}${thriftType} ${location.name}${defaultValue ? " = " + defaultValue : ""}`;
+		let docCommentNode: SimpleTypeCompilerNode | undefined = undefined;
+		const memberTs = step.step !== "VARIANT" ? step.member.getTypescript?.() : undefined;
+		if (memberTs) {
+			const { checker, symbol } = memberTs;
+			docCommentNode = this.docCommentNode(builder, "  ", checker, symbol);
+		}
+
+		const memberNode: SimpleTypeCompilerNode = builder.node`  ${String(step.index)}: ${optional ? "optional " : ""}${thriftType} ${location.name}${defaultValue ? " = " + defaultValue : ""}`;
+		return builder.node([docCommentNode, memberNode].filter(isDefined)).joinNodes("\n");
 	});
+
+	docCommentNode(builder: SimpleTypeCompilerNodeBuilder, prefix: string, checker: ts.TypeChecker, symbol: ts.Symbol): SimpleTypeCompilerNode | undefined {
+		const ts = getTypescriptModule();
+		const docComment = ts.displayPartsToString(symbol.getDocumentationComment(checker));
+		const jsDocTags = symbol
+			.getJsDocTags(checker)
+			.map(({ name, text }) => [`@${name}`, text && ts.displayPartsToString(text)].filter(Boolean).join(" "))
+			.join("\n");
+		const text = [docComment, jsDocTags].filter(Boolean).join("\n\n");
+
+		if (text) {
+			const body = text.split("\n").map(line => `${prefix} * ${line}`);
+			return builder.node([`${prefix}/**`, ...body, `${prefix} */`]).joinNodes("\n");
+		}
+	}
+
+	typeDocCommentNode(type: SimpleType, path: SimpleTypePath, prefix: string): SimpleTypeCompilerNode | undefined {
+		const builder = this.compiler.nodeBuilder(type, path);
+		const asTypescript = type.getTypescript?.();
+		if (!asTypescript) {
+			return;
+		}
+
+		if (asTypescript.symbol) {
+			return this.docCommentNode(builder, prefix, asTypescript.checker, asTypescript.symbol);
+		}
+	}
+
+	withDeclarationDocComment(type: SimpleType, path: SimpleTypePath, inner: SimpleTypeCompilerNode): SimpleTypeCompilerNode {
+		const builder = this.compiler.nodeBuilder(type, path);
+		const docCommentNode = this.typeDocCommentNode(type, path, "");
+		return docCommentNode ? builder.node([docCommentNode, inner]).joinNodes("\n") : inner;
+	}
 
 	dropMemberKinds = new Set<SimpleTypeKind>(["FUNCTION", "METHOD"]);
 	private filterMembers = (members: SimpleTypeCompilerNode[]) => members.filter(node => !(node.type?.kind && this.dropMemberKinds.has(node.type.kind)));
@@ -252,7 +294,7 @@ union SomeUnion {
 					})
 				);
 
-				return builder.declaration(loc, builder.node`union ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`);
+				return builder.declaration(loc, this.withDeclarationDocComment(type, path, builder.node`union ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`));
 			});
 		},
 		INTERSECTION: ({ type, visit }) => {
@@ -276,7 +318,7 @@ union SomeUnion {
 						visit: visit.with(this.compileMember)
 					})
 				);
-				return builder.declaration(loc, builder.node`struct ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`);
+				return builder.declaration(loc, this.withDeclarationDocComment(type, path, builder.node`struct ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`));
 			});
 		},
 
@@ -309,7 +351,7 @@ union SomeUnion {
 						return builder.node`  ${type.name} = ${JSON.stringify(type.type.value)}`;
 					})
 				});
-				return builder.declaration(loc, builder.node`enum ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`);
+				return builder.declaration(loc, this.withDeclarationDocComment(type, path, builder.node`enum ${loc.name} {\n${builder.node(members).joinNodes(",\n")}\n}`));
 			});
 		},
 		ENUM_MEMBER: this.withBuilder(({ builder, type }) => {

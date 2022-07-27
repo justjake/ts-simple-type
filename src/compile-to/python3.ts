@@ -12,7 +12,7 @@ import {
 	SimpleTypeCompilerReferenceNode,
 	SimpleTypeCompilerTarget,
 	SimpleTypeCompilerTargetFile
-} from "../transform/compile-simple-type";
+} from "../transform/compiler";
 import { toNullableSimpleType } from "../transform/inspect-simple-type";
 import { simpleTypeToString } from "../transform/simple-type-to-string";
 import { SimpleTypeKindVisitors, VisitorArgs, Visitor } from "../visitor";
@@ -68,10 +68,10 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 		const builder = this.compiler.anonymousNodeBuilder();
 		const finalNodeList = [...file.nodes];
 		if (importFiles.size) {
-			const refNode = builder.node(Array.from(importFiles)).join("\n");
+			const refNode = builder.node(Array.from(importFiles)).joinNodes("\n");
 			finalNodeList.unshift(refNode);
 		}
-		return builder.node(finalNodeList).join("\n\n");
+		return builder.node(finalNodeList).joinNodes("\n\n");
 	}
 
 	getPythonImportPath(outputFileName: string): string {
@@ -100,7 +100,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 	compileNone = this.withBuilder(({ builder }) => builder.node`None`);
 
 	compileObjectLike: Visitor<SimpleTypeCompilerNode, SimpleTypeObject | SimpleTypeClass | SimpleTypeInterface> = this.withBuilder(({ builder, type, path, visit }) => {
-		const name = this.compiler.assignDeclarationLocation(type);
+		const name = this.compiler.assignDeclarationLocation(type, path);
 		const members = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
 			path,
 			type,
@@ -113,13 +113,13 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 		});
 
 		const dataclass = this.stdlibReference(builder, "dataclasses", "dataclass");
-		return builder.declaration(name, ["@", dataclass, `\nclass ${name.name}:\n`, builder.node(members).join("\n") ?? "pass"]);
+		return builder.declaration(name, ["@", dataclass, `\nclass ${name.name}:\n`, builder.node(members).joinNodes("\n") ?? "pass"]);
 	});
 
 	compileCallable: Visitor<SimpleTypeCompilerNode, SimpleTypeMethod | SimpleTypeFunction> = this.withBuilder(({ builder, type, path, visit }) => {
 		return builder.node([
 			`Callable[[`,
-			builder.references(Visitor[type.kind].mapParameters({ path, type, visit })).join(", "),
+			builder.references(Visitor[type.kind].mapParameters({ path, type, visit })).joinNodes(", "),
 			`], `,
 			builder.reference(Visitor.FUNCTION.return({ path, type, visit })) ?? "None",
 			`]`
@@ -132,7 +132,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 		}
 
 		const builder = this.compiler.nodeBuilder(args.type, args.path);
-		const declarationLocation = this.compiler.assignDeclarationLocation(args.type);
+		const declarationLocation = this.compiler.assignDeclarationLocation(args.type, args.path);
 		return builder.declaration(declarationLocation, builder.node`${declarationLocation.name} = ${inner}`);
 	}
 
@@ -189,7 +189,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 				return builder.node`${Optional}[${builder.reference(visit(undefined, nullable.type))}]`;
 			} else {
 				const Union = this.stdlibReference(builder, "typing", "Union");
-				return builder.node`${Union}[${builder.references(Visitor.UNION.mapVariants({ path, type, visit })).join(", ")}]`;
+				return builder.node`${Union}[${builder.references(Visitor.UNION.mapVariants({ path, type, visit })).joinNodes(", ")}]`;
 			}
 		}),
 		INTERSECTION: ({ type, visit }) => {
@@ -203,7 +203,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 		ARRAY: this.withBuilder(({ builder, type, path, visit }) => builder.node`list[${builder.reference(Visitor.ARRAY.numberIndex({ path, type, visit })) ?? "object"}]`),
 		TUPLE: this.withBuilder(({ builder, path, type, visit }) => {
 			const Tuple = this.stdlibReference(builder, "typing", "Tuple");
-			return builder.node`${Tuple}[${builder.references(Visitor.TUPLE.mapIndexedMembers({ path, type, visit })).join(", ")}]`;
+			return builder.node`${Tuple}[${builder.references(Visitor.TUPLE.mapIndexedMembers({ path, type, visit })).joinNodes(", ")}]`;
 		}),
 
 		// Object
@@ -213,7 +213,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 
 		// Enum
 		ENUM: this.withBuilder(({ builder, type, path, visit }) => {
-			const name = this.compiler.assignDeclarationLocation(type);
+			const name = this.compiler.assignDeclarationLocation(type, path);
 			if (name.name !== type.name) {
 				// eslint-disable-next-line no-console
 				console.warn(`Warning: Enum name ${type.name} does not match class name ${name}; ENUM_MEMBER references will be incorrect.`);
@@ -234,7 +234,7 @@ export class PythonCompilerTarget implements SimpleTypeCompilerTarget {
 				})
 			});
 			const Enum = this.stdlibReference(builder, "enum", "Enum");
-			return builder.declaration(name, [`class ${name.name}(`, Enum, `):\n`, builder.node(members).join("\n")]);
+			return builder.declaration(name, [`class ${name.name}(`, Enum, `):\n`, builder.node(members).joinNodes("\n")]);
 		}),
 		ENUM_MEMBER: this.withBuilder(({ builder, type }) => {
 			// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be

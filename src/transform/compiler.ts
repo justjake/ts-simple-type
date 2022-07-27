@@ -22,7 +22,7 @@ const NO_SOURCE_LOCATION_FOUND = {
 };
 
 const NO_DESTINATION_LOCATION: SimpleTypeCompilerLocation = {
-	fileName: ""
+	fileName: "<no destination file specified>"
 };
 
 type Chunks = Array<string | SourceNode> | SourceNode | string;
@@ -71,7 +71,7 @@ export class SimpleTypeCompiler {
 				// That way, compilations can rely on entrypoint info.
 				for (const entry of entryPoints) {
 					const type = this.toSimpleType(entry.inputType);
-					outputProgram.entryPoints.set(type, this.assignDeclarationLocation(type, entry.outputLocation));
+					outputProgram.entryPoints.set(type, this.assignDeclarationLocation(type, [], entry.outputLocation));
 				}
 
 				// Compile each type into an AST node.
@@ -224,10 +224,25 @@ export class SimpleTypeCompiler {
 	}
 
 	/**
-	 * During a call to {@link compileProgram}, this method returns the in-progress location.
+	 * During a call to {@link compileProgram} or {@link withLocation}, this method returns the in-progress location.
+	 * TODO: make this non-nullable
 	 */
 	getCurrentLocation(): SimpleTypeCompilerLocation | undefined {
 		return this.current.outputLocation;
+	}
+
+	/**
+	 * Perform `fn` with the compiler's location set to `location`.
+	 * Use this around the compilation of a declaration that occurs in a different location.
+	 */
+	withLocation<T>(location: SimpleTypeCompilerLocation | undefined, fn: () => T): T {
+		return this.withState(
+			{
+				...this.current,
+				outputLocation: location
+			},
+			fn
+		);
 	}
 
 	/**
@@ -258,7 +273,18 @@ export class SimpleTypeCompiler {
 	/**
 	 * Return the type's name, or try to infer one if it is anonymous.
 	 */
-	inferTypeName(rootType: SimpleType): string {
+	inferTypeName(type: SimpleType, path: SimpleTypePath): string {
+		let allowPathBasedName = true;
+		function noPathBasedNames<T>(fn: () => T): T {
+			const original = allowPathBasedName;
+			allowPathBasedName = false;
+			try {
+				return fn();
+			} finally {
+				allowPathBasedName = original;
+			}
+		}
+
 		const visitor: Visitor<string | undefined> = ({ type: derivedType, path, visit }) => {
 			if (derivedType.name) {
 				return derivedType.name;
@@ -272,18 +298,25 @@ export class SimpleTypeCompiler {
 				return type.name;
 			}
 
+			const lastStepWithNamedType = path
+				.slice()
+				.reverse()
+				.find(step => step.from.name);
+			const minimalPath = lastStepWithNamedType ? path.slice(path.indexOf(lastStepWithNamedType)) : path;
+			const pathBasedName = allowPathBasedName ? SimpleTypePath.toTypeName(minimalPath, type) : undefined;
+
 			switch (type.kind) {
 				case "ARRAY": {
 					const inner = Visitor.ARRAY.numberIndex({ type, path, visit });
-					return inner ? `ArrayOf${inner}` : "Array";
+					return inner ? `ArrayOf${inner}` : pathBasedName;
 				}
 				case "UNION": {
-					const inner = Visitor.UNION.mapVariants({ type, path, visit });
-					return inner.some(Boolean) ? inner.filter(Boolean).join("Or") : "Union";
+					const inner = noPathBasedNames(() => Visitor.UNION.mapVariants({ type, path: [], visit }));
+					return inner.some(Boolean) ? inner.filter(Boolean).join("Or") : pathBasedName;
 				}
 				case "INTERSECTION": {
-					const inner = Visitor.INTERSECTION.mapVariants({ type, path, visit });
-					return inner.some(Boolean) ? inner.filter(Boolean).join("And") : "Intersection";
+					const inner = noPathBasedNames(() => Visitor.INTERSECTION.mapVariants({ type, path, visit }));
+					return inner.some(Boolean) ? inner.filter(Boolean).join("And") : pathBasedName;
 				}
 				case "GENERIC_ARGUMENTS": {
 					const inner = Visitor.GENERIC_ARGUMENTS.mapGenericArguments({ type, path, visit });
@@ -295,18 +328,18 @@ export class SimpleTypeCompiler {
 				case "ALIAS": {
 					const aliasedName = Visitor.ALIAS.aliased({ type, path, visit });
 					if (!aliasedName) {
-						// Try some crazy stuff.
-						return undefined;
+						// TODO: Try some crazy stuff.
+						return pathBasedName;
 					}
 					return aliasedName;
 				}
 			}
 
-			return undefined;
+			return pathBasedName;
 		};
 
-		const name = walkRecursive([], rootType, visitor);
-		return name ?? snakeCaseToCamelCase(`ANONYMOUS_${rootType.kind}`);
+		const name = walkRecursive(path ?? [], type, visitor);
+		return name ?? snakeCaseToCamelCase(`ANONYMOUS_${type.kind}`);
 	}
 
 	getSourceLocation = getSourceLocationOfSimpleType;
@@ -320,6 +353,27 @@ export class SimpleTypeCompiler {
 		const exportedSymbol = typescript.checker.getExportSymbolOfSymbol(typescript.symbol);
 		const moduleSymbol = typescript.checker.getSymbolAtLocation(typescript.sourceFile);
 		return Boolean(moduleSymbol && typescript.checker.getExportsOfModule(moduleSymbol).includes(exportedSymbol));
+	}
+
+	createUniqueLocation(type: SimpleType, path: SimpleTypePath, suggestedLocation: SimpleTypeCompilerLocation): SimpleTypeCompilerDeclarationLocation {
+		const maybeUniqueLocation: SimpleTypeCompilerDeclarationLocation = {
+			name: suggestedLocation.name ?? this.inferTypeName(type, path),
+			fileName: suggestedLocation.fileName,
+			namespace: suggestedLocation.namespace
+		};
+
+		const count = this.current.program.getDeclarationLocationCount(maybeUniqueLocation);
+		this.current.program.setDeclarationLocationCount(maybeUniqueLocation, count + 1);
+
+		const uniqueLocation: SimpleTypeCompilerDeclarationLocation = {
+			...maybeUniqueLocation,
+			name: count > 0 ? `${maybeUniqueLocation.name}${count}` : maybeUniqueLocation.name,
+			toString() {
+				return this.name;
+			}
+		};
+
+		return uniqueLocation;
 	}
 
 	/**
@@ -336,7 +390,7 @@ export class SimpleTypeCompiler {
 	 * @param location Assign the type to this location.
 	 * @returns The assigned location, suitable for use
 	 */
-	assignDeclarationLocation(type: SimpleType, location?: SimpleTypeCompilerLocation & { name?: string }): SimpleTypeCompilerDeclarationLocation {
+	assignDeclarationLocation(type: SimpleType, path: SimpleTypePath, location?: SimpleTypeCompilerLocation): SimpleTypeCompilerDeclarationLocation {
 		const existingLocationForType = this.current.program.getDeclarationLocation(type);
 		if (existingLocationForType) {
 			return existingLocationForType;
@@ -347,25 +401,10 @@ export class SimpleTypeCompiler {
 			namespace: this.current.outputLocation.namespace
 		};
 
-		const suggestedLocation: SimpleTypeCompilerLocation & { name?: string } =
+		const suggestedLocation: SimpleTypeCompilerLocation =
 			location ?? this.target.suggestDeclarationLocation?.(type, currentFilenameNamespace ?? NO_DESTINATION_LOCATION) ?? currentFilenameNamespace ?? NO_DESTINATION_LOCATION;
 
-		const maybeUniqueLocation: SimpleTypeCompilerDeclarationLocation = {
-			name: suggestedLocation.name ?? this.inferTypeName(type),
-			fileName: suggestedLocation.fileName,
-			namespace: suggestedLocation.namespace
-		};
-
-		const count = this.current.program.getDeclarationLocationCount(maybeUniqueLocation);
-		this.current.program.setDeclarationLocationCount(maybeUniqueLocation, count + 1);
-
-		const uniqueLocation: SimpleTypeCompilerDeclarationLocation = {
-			...maybeUniqueLocation,
-			name: count > 0 ? `${maybeUniqueLocation.name}${count}` : maybeUniqueLocation.name,
-			toString() {
-				return this.name;
-			}
-		};
+		const uniqueLocation = this.createUniqueLocation(type, path, suggestedLocation);
 
 		this.current.program.setDeclarationLocation(type, uniqueLocation);
 		return uniqueLocation;
@@ -605,7 +644,7 @@ export class SimpleTypeCompilerNode extends SourceNode {
 	/**
 	 * Mutate this node by inserting `sep` between every child.
 	 */
-	join(sep: string): this {
+	joinNodes(sep: string): this {
 		return super.join(sep) as this;
 	}
 }
@@ -625,6 +664,7 @@ export class SimpleTypeCompilerDeclarationReferenceNode extends SimpleTypeCompil
 export interface SimpleTypeCompilerLocation {
 	fileName: string;
 	namespace?: string[];
+	name?: string;
 }
 
 export interface SimpleTypeCompilerDeclarationLocation extends SimpleTypeCompilerLocation {

@@ -2,7 +2,8 @@ import test from "ava";
 import { RawSourceMap } from "source-map";
 import { SimpleType, SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } from "../src";
 import { PythonCompilerTarget } from "../src/compile-to/python3";
-import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compile-simple-type";
+import { ThriftCompilerTarget } from "../src/compile-to/thrift";
+import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compiler";
 import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TS = `
@@ -14,6 +15,10 @@ type DBTable =
 type RecordPointer<T extends DBTable = DBTable> = T extends 'space' ?
 	{ table: T; id: string } :
 	{ table: T; id: string; spaceId: string }
+
+type TableModal<T extends DBTable = DBTable> = T extends 'space'
+	? { open: false }
+	: ({ open: true, view: string } | { open: false })
 
 enum AnnotationType {
 	Bold,
@@ -29,6 +34,7 @@ export interface Table {
   header: string[]
   rows: string[][]
 	parent: RecordPointer<'block'>
+	modal: TableModal<'block'>
 	rect?: Rect
 }
 
@@ -74,8 +80,7 @@ test("Compiler example: compile to Python", ctx => {
 
 	class TestPythonTarget extends PythonCompilerTarget implements SimpleTypeCompilerTarget {
 		suggestDeclarationLocation(type: SimpleType, from: SimpleTypeCompilerLocation): SimpleTypeCompilerLocation | SimpleTypeCompilerDeclarationLocation {
-			const name = this.compiler.inferTypeName(type);
-			if (name.includes("Anonymous")) {
+			if (!type.name) {
 				return {
 					fileName: "editor/generated.py"
 				};
@@ -205,7 +210,7 @@ interface Location {
 							return builder.node`  ${memberType} ${member.name};`;
 						})
 					});
-					const newlineSeparatedFields = builder.node(fields).join("\n");
+					const newlineSeparatedFields = builder.node(fields).joinNodes("\n");
 					return builder.declaration(declarationLocation, builder.node`typedef struct {\n${newlineSeparatedFields}\n} ${declarationLocation.name};`);
 				}
 				default:
@@ -226,7 +231,7 @@ interface Location {
 		compileFile(file) {
 			const builder = compiler.anonymousNodeBuilder();
 			const includes = Array.from(new Set(file.references.map(ref => ref.fileName))).filter(fileName => fileName !== file.fileName);
-			return builder.node([...includes.map(include => builder.node`#include "${include}"`), ...file.nodes]).join("\n\n");
+			return builder.node([...includes.map(include => builder.node`#include "${include}"`), ...file.nodes]).joinNodes("\n\n");
 		}
 	}));
 
@@ -244,4 +249,32 @@ interface Location {
 	for (const [fileName, outputFile] of files) {
 		ctx.snapshot(outputFile.text, fileName);
 	}
+});
+
+test("Compiler example: compile to Thrift", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = ThriftCompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "thrift/schema.thrift"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
 });

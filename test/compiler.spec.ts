@@ -121,11 +121,11 @@ test("assignDeclarationLocation: same location = same name", ctx => {
 	});
 
 	const DocumentType = compiler.toSimpleType(types.Document);
-	const name = compiler.assignDeclarationLocation(DocumentType);
-	const name2 = compiler.assignDeclarationLocation(DocumentType);
+	const name = compiler.assignDeclarationLocation(DocumentType, []);
+	const name2 = compiler.assignDeclarationLocation(DocumentType, []);
 	ctx.is(name, name2);
 
-	const name3 = compiler.assignDeclarationLocation(DocumentType, {
+	const name3 = compiler.assignDeclarationLocation(DocumentType, [], {
 		fileName: "random/output.py"
 	});
 	ctx.is(name, name3);
@@ -143,8 +143,8 @@ test("assignDeclarationLocation: same location with different type gives unique 
 
 	const doc1 = compiler1.toSimpleType(one.types.Document);
 	const doc2 = compiler2.toSimpleType(two.types.Document);
-	const name1 = compiler1.assignDeclarationLocation(doc1);
-	const name2 = compiler1.assignDeclarationLocation(doc2);
+	const name1 = compiler1.assignDeclarationLocation(doc1, []);
+	const name2 = compiler1.assignDeclarationLocation(doc2, []);
 
 	ctx.not(name1.name, name2.name);
 	ctx.true(SimpleTypeCompilerLocation.fileAndNamespaceEqual(name1, name2));
@@ -191,7 +191,7 @@ interface Location {
 				case "CLASS":
 				case "OBJECT": {
 					// Declarations are assigned locations in a compiler output file.
-					const declarationLocation = compiler.assignDeclarationLocation(type);
+					const declarationLocation = compiler.assignDeclarationLocation(type, path);
 					const fields = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
 						path,
 						type,

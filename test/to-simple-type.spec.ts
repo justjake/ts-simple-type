@@ -5,10 +5,13 @@ import {
 	SimpleType,
 	SimpleTypeAlias,
 	SimpleTypeArray,
+	SimpleTypeString,
+	SimpleTypeCustom,
 	SimpleTypeGenericArguments,
 	SimpleTypeInterface,
+	SimpleTypeMember,
+	SimpleTypeMemberNamed,
 	SimpleTypeObject,
-	SimpleTypeString,
 	SimpleTypeUnion,
 	toSimpleType
 } from "../src";
@@ -48,7 +51,8 @@ export type ContentPointer = RecordPointer<'block' | 'collection'>
 test("it adds methods when addMethods is set", ctx => {
 	const { types, typeChecker } = getTestTypes(["SimpleAlias", "SimpleAliasExample", "GenericInterface", "GenericInterfaceExample"], TEST_TYPES);
 	const simpleType = toSimpleType(types.SimpleAliasExample, typeChecker, {
-		addMethods: true
+		addMethods: true,
+		cache: new WeakMap()
 	});
 
 	const toTs = simpleType.getTypescript?.();
@@ -370,6 +374,185 @@ test("generic type alias handling", ctx => {
 
 	ctx.deepEqual(recordPointerExpected, toSimpleType(types.RecordPointer, typeChecker));
 });
+
+const CUSTOM_TYPE_EXAMPLE = `
+const sym = Symbol('fool')
+
+/// XXX: We still can't "see" GENERIC_ARGUMENTS of many aliases :(
+export type GenericAlias<T, Q> = T & CustomType<Q>
+export type RecordId<T> = GenericAlias<string, { table: T }>
+export interface CustomType<T>  {
+	[typeof sym]: T
+}
+export type ExampleType = { id: string, related_id: CustomType<string> }
+export type ExampleType2 = { id: string, related_id: RecordId<'block'> }
+`;
+
+test("custom type handling, non-generic", ctx => {
+	const { types, typeChecker } = getTestTypes(["CustomType", "ExampleType"], CUSTOM_TYPE_EXAMPLE);
+	const expected: SimpleTypeObject = {
+		kind: "OBJECT",
+		name: "ExampleType",
+		members: [
+			{ name: "id", type: { kind: "STRING" } },
+			{
+				name: "related_id",
+				type: {
+					kind: "GENERIC_ARGUMENTS",
+					target: { kind: "CUSTOM", name: "Very cool custom target" },
+					instantiated: { kind: "OBJECT", name: "CustomType", members: [] },
+					typeArguments: [{ kind: "STRING" }]
+				}
+			}
+		]
+	};
+
+	const actual = toSimpleType(types.ExampleType, typeChecker, {
+		cache: new WeakMap(),
+		toCustomType({ type }) {
+			if (type === types.CustomType) {
+				return {
+					kind: "CUSTOM",
+					name: "Very cool custom target"
+				};
+			}
+		}
+	});
+
+	ctx.deepEqual(actual, expected);
+});
+
+test("custom type handling, generic", ctx => {
+	const { types, typeChecker } = getTestTypes(["CustomType", "ExampleType"], CUSTOM_TYPE_EXAMPLE);
+	const expected: SimpleTypeObject = {
+		kind: "OBJECT",
+		name: "ExampleType",
+		members: [
+			{ name: "id", type: { kind: "STRING" } },
+			{
+				name: "related_id",
+				type: {
+					kind: "CUSTOM",
+					name: "Generic custom type",
+					extra: {
+						extractedParameter: { kind: "STRING" },
+						instantiated: { kind: "OBJECT", name: "CustomType", members: [] }
+					}
+				}
+			}
+		]
+	};
+
+	const actual = toSimpleType(types.ExampleType, typeChecker, {
+		cache: new WeakMap(),
+		toCustomType({ type, generic }) {
+			if (generic && type === types.CustomType) {
+				return function wrap(simpleType) {
+					if (simpleType.kind !== "GENERIC_ARGUMENTS") {
+						ctx.is(simpleType.kind, "GENERIC_ARGUMENTS", "should be a GENERIC_ARGUMENTS");
+						throw "no";
+					}
+					return {
+						kind: "CUSTOM",
+						name: "Generic custom type",
+						extra: {
+							extractedParameter: simpleType.typeArguments[0],
+							instantiated: simpleType.instantiated
+						}
+					};
+				};
+			}
+		}
+	});
+
+	ctx.deepEqual(actual, expected);
+});
+
+test("custom type handling, wrapper with generic anchor", ctx => {
+	const { types, typeChecker } = getTestTypes(["CustomType", "ExampleType2"], CUSTOM_TYPE_EXAMPLE);
+	const expected: SimpleTypeObject = {
+		kind: "OBJECT",
+		name: "ExampleType2",
+		members: [
+			{ name: "id", type: { kind: "STRING" } },
+			{
+				name: "related_id",
+				type: { kind: "CUSTOM", name: "RecordId", extra: { table: "block" } }
+			}
+		]
+	};
+
+	const actual = toSimpleType(types.ExampleType2, typeChecker, {
+		cache: new WeakMap(),
+		toCustomType({ type, generic }) {
+			// Anchor - it's easy to find a generic application of an interface,
+			// so we search for that happening and turn it into a custom MetaData type
+			// by extracting the generic argument.
+			if (generic && type === types.CustomType) {
+				return function wrapGeneric(simpleType) {
+					if (simpleType.kind !== "GENERIC_ARGUMENTS") {
+						ctx.is(simpleType.kind, "GENERIC_ARGUMENTS", "should be a GENERIC_ARGUMENTS");
+						throw "no";
+					}
+
+					return {
+						kind: "CUSTOM",
+						name: "MetaData",
+						extra: simpleTypeToLiteral(simpleType.typeArguments[0])
+					};
+				};
+			} else {
+				return simpleType => {
+					// Abstraction - check every type converted to SimpleType for special patterns.
+					// In this case, we look for RecordId alias, which contains a MetaData anchor.
+					// Then, we replace the whole abstraction type with just its metadata.
+					if (simpleType.kind === "ALIAS" && simpleType.name === "RecordId" && simpleType.target.kind === "INTERSECTION") {
+						const metaDataType = simpleType.target.types.find(t => t.kind === "CUSTOM" && t.name === "MetaData") as SimpleTypeCustom;
+						if (metaDataType) {
+							return {
+								kind: "CUSTOM",
+								name: "RecordId",
+								extra: metaDataType.extra
+							};
+						}
+					}
+					return simpleType;
+				};
+			}
+		}
+	});
+
+	ctx.deepEqual(actual, expected);
+});
+
+function simpleTypeToLiteral(simpleType: SimpleType): unknown {
+	if ("value" in simpleType) {
+		return simpleType.value;
+	}
+
+	if ("members" in simpleType && simpleType.members) {
+		const result: any = simpleType.kind === "TUPLE" ? [] : {};
+		simpleType.members.forEach((member: SimpleTypeMember | SimpleTypeMemberNamed, i) => {
+			const name = "name" in member ? member.name : i;
+			result[name] = simpleTypeToLiteral(member.type);
+		});
+		return result;
+	}
+
+	if (simpleType.kind === "UNION") {
+		return simpleType.types.map(simpleTypeToLiteral);
+	}
+
+	if (simpleType.kind === "NULL") {
+		return null;
+	}
+
+	if (simpleType.kind === "UNDEFINED") {
+		return undefined;
+	}
+
+	throw new Error(`Cannot convert SimpleType to literal: ${JSON.stringify(simpleType, null, 2)}`);
+}
 
 const stringSimpleType: SimpleTypeString = {
 	kind: "STRING"

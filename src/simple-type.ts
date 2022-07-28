@@ -41,7 +41,8 @@ export type SimpleTypeKind =
 	| "ARRAY"
 	// Special types
 	| "DATE"
-	| "PROMISE";
+	| "PROMISE"
+	| "CUSTOM";
 
 export type SimpleTypeModifierKind = "EXPORT" | "AMBIENT" | "PUBLIC" | "PRIVATE" | "PROTECTED" | "STATIC" | "READONLY" | "ABSTRACT" | "ASYNC" | "DEFAULT";
 
@@ -272,7 +273,7 @@ export interface SimpleTypeMethod extends SimpleTypeBase {
 export interface SimpleTypeGenericArguments extends SimpleTypeBase {
 	readonly kind: "GENERIC_ARGUMENTS"; // TODO: rename
 	/** The generic type being instantiated */
-	readonly target: Extract<SimpleType, { typeParameters?: unknown }>;
+	readonly target: Extract<SimpleType, { typeParameters?: unknown }> | SimpleTypeCustom;
 	/** The arguments passed to the generic */
 	readonly typeArguments: SimpleType[];
 	/** The concrete type resulting from applying the type parameters to the generic */
@@ -321,6 +322,11 @@ export interface SimpleTypePromise extends SimpleTypeBase {
 	readonly type: SimpleType;
 }
 
+export interface SimpleTypeCustom<T = unknown> extends SimpleTypeBase {
+	readonly kind: "CUSTOM";
+	readonly extra?: T;
+}
+
 export type SimpleType =
 	| SimpleTypeBigIntLiteral
 	| SimpleTypeEnumMember
@@ -354,7 +360,8 @@ export type SimpleType =
 	| SimpleTypeAlias
 	| SimpleTypeDate
 	| SimpleTypeGenericArguments
-	| SimpleTypeGenericParameter;
+	| SimpleTypeGenericParameter
+	| SimpleTypeCustom;
 
 // Collect all values on place. This is a map so Typescript will complain if we forget any kind.
 const SIMPLE_TYPE_MAP: Record<SimpleTypeKind, "primitive" | "primitive_literal" | undefined> = {
@@ -390,7 +397,8 @@ const SIMPLE_TYPE_MAP: Record<SimpleTypeKind, "primitive" | "primitive_literal" 
 	PROMISE: undefined,
 	TUPLE: undefined,
 	UNION: undefined,
-	UNKNOWN: undefined
+	UNKNOWN: undefined,
+	CUSTOM: undefined
 };
 
 // Primitive, literal
@@ -447,4 +455,5 @@ export type SimpleTypeKindMap = {
 	ARRAY: SimpleTypeArray;
 	DATE: SimpleTypeDate;
 	PROMISE: SimpleTypePromise;
+	CUSTOM: SimpleTypeCustom;
 };

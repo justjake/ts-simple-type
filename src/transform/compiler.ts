@@ -342,8 +342,40 @@ export class SimpleTypeCompiler {
 		return name ?? snakeCaseToCamelCase(`ANONYMOUS_${type.kind}`);
 	}
 
+	/**
+	 * Find the type's source location. Returns the relevant Typescript source location objects,
+	 * as well as an object formatted for source mapping.
+	 */
 	getSourceLocation = getSourceLocationOfSimpleType;
 
+	getDocumentationComment(typeOrMember: SimpleType | SimpleTypeMember): { docComment?: string; jsDocTags?: Map<string, string | undefined> } | undefined {
+		const typeInfo = typeOrMember.getTypescript?.();
+		if (!typeInfo) {
+			return;
+		}
+
+		const { checker, symbol } = typeInfo;
+		if (!symbol) {
+			return;
+		}
+
+		const ts = getTypescriptModule();
+		const docComment = ts.displayPartsToString(symbol.getDocumentationComment(checker));
+		const tags = new Map<string, string | undefined>();
+		for (const tag of symbol.getJsDocTags(checker)) {
+			tags.set(tag.name, tag.text && ts.displayPartsToString(tag.text));
+		}
+
+		if (docComment || tags.size) {
+			return { docComment: docComment ? docComment : undefined, jsDocTags: tags.size ? tags : undefined };
+		} else {
+			return undefined;
+		}
+	}
+
+	/**
+	 * @returns true if `type` is exported from its source declaration file.
+	 */
 	isExportedFromSourceLocation(type: SimpleType): boolean {
 		const { typescript } = getSourceLocationOfSimpleType(type);
 		if (!typescript) {

@@ -1,6 +1,6 @@
 import * as path from "path";
 import type * as ts from "typescript";
-import { isSimpleTypeLiteral, SimpleType, SimpleTypeClass, SimpleTypeInterface, SimpleTypeKind, SimpleTypeLiteral, SimpleTypeObject } from "../simple-type";
+import { isSimpleTypeLiteral, SimpleType, SimpleTypeClass, SimpleTypeInterface, SimpleTypeKind, SimpleTypeLiteral, SimpleTypeMember, SimpleTypeObject } from "../simple-type";
 import { SimpleTypePath } from "../simple-type-path";
 import {
 	SimpleTypeCompiler,
@@ -15,7 +15,6 @@ import {
 } from "../transform/compiler";
 import { toEnumTaggedUnion, toNullableSimpleType } from "../transform/inspect-simple-type";
 import { simpleTypeToString } from "../transform/simple-type-to-string";
-import { getTypescriptModule } from "../ts-module";
 import { SimpleTypeKindVisitors, Visitor, VisitorArgs } from "../visitor";
 
 /**
@@ -167,47 +166,42 @@ export class ThriftCompilerTarget implements SimpleTypeCompilerTarget {
 		};
 		const location = this.compiler.createUniqueLocation(type, path, namespace);
 
-		let docCommentNode: SimpleTypeCompilerNode | undefined = undefined;
-		const memberTs = step.step !== "VARIANT" ? step.member.getTypescript?.() : undefined;
-		if (memberTs) {
-			const { checker, symbol } = memberTs;
-			docCommentNode = this.docCommentNode(builder, "  ", checker, symbol);
-		}
-
+		const docCommentNode = step.step !== "VARIANT" ? this.docCommentNode(builder, "  ", step.member) : undefined;
 		const memberNode: SimpleTypeCompilerNode = builder.node`  ${String(step.index)}: ${optional ? "optional " : ""}${thriftType} ${location.name}${defaultValue ? " = " + defaultValue : ""}`;
 		return builder.node([docCommentNode, memberNode].filter(isDefined)).joinNodes("\n");
 	});
 
-	docCommentNode(builder: SimpleTypeCompilerNodeBuilder, prefix: string, checker: ts.TypeChecker, symbol: ts.Symbol): SimpleTypeCompilerNode | undefined {
-		const ts = getTypescriptModule();
-		const docComment = ts.displayPartsToString(symbol.getDocumentationComment(checker));
-		const jsDocTags = symbol
-			.getJsDocTags(checker)
-			.map(({ name, text }) => [`@${name}`, text && ts.displayPartsToString(text)].filter(Boolean).join(" "))
-			.join("\n");
-		const text = [docComment, jsDocTags].filter(Boolean).join("\n\n");
+	docCommentNode(builder: SimpleTypeCompilerNodeBuilder, prefix: string, typeOrMember: SimpleType | SimpleTypeMember): SimpleTypeCompilerNode | undefined {
+		const docCommentInfo = this.compiler.getDocumentationComment(typeOrMember);
+		if (!docCommentInfo) {
+			return;
+		}
 
+		const { docComment, jsDocTags } = docCommentInfo;
+		const unIndentedParts: string[] = [];
+		if (docComment) {
+			unIndentedParts.push(docComment);
+		}
+		if (jsDocTags) {
+			if (unIndentedParts.length) {
+				unIndentedParts.push("");
+			}
+
+			for (const [tag, value] of jsDocTags) {
+				unIndentedParts.push(`@${tag}${value ? " " + value : ""}`);
+			}
+		}
+
+		const text = unIndentedParts.join("\n");
 		if (text) {
 			const body = text.split("\n").map(line => `${prefix} * ${line}`);
 			return builder.node([`${prefix}/**`, ...body, `${prefix} */`]).joinNodes("\n");
 		}
 	}
 
-	typeDocCommentNode(type: SimpleType, path: SimpleTypePath, prefix: string): SimpleTypeCompilerNode | undefined {
-		const builder = this.compiler.nodeBuilder(type, path);
-		const asTypescript = type.getTypescript?.();
-		if (!asTypescript) {
-			return;
-		}
-
-		if (asTypescript.symbol) {
-			return this.docCommentNode(builder, prefix, asTypescript.checker, asTypescript.symbol);
-		}
-	}
-
 	withDeclarationDocComment(type: SimpleType, path: SimpleTypePath, inner: SimpleTypeCompilerNode): SimpleTypeCompilerNode {
 		const builder = this.compiler.nodeBuilder(type, path);
-		const docCommentNode = this.typeDocCommentNode(type, path, "");
+		const docCommentNode = this.docCommentNode(builder, "", type);
 		return docCommentNode ? builder.node([docCommentNode, inner]).joinNodes("\n") : inner;
 	}
 

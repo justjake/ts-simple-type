@@ -71,7 +71,10 @@ export class SimpleTypeCompiler {
 				// That way, compilations can rely on entrypoint info.
 				for (const entry of entryPoints) {
 					const type = this.toSimpleType(entry.inputType);
-					outputProgram.entryPoints.set(type, this.assignDeclarationLocation(type, [], entry.outputLocation));
+					outputProgram.entryPoints.set(type, entry.outputLocation as any);
+					this.withLocation(entry.outputLocation, () => {
+						outputProgram.entryPoints.set(type, this.assignDeclarationLocation(type, []));
+					});
 				}
 
 				// Compile each type into an AST node.
@@ -434,7 +437,11 @@ export class SimpleTypeCompiler {
 		};
 
 		const suggestedLocation: SimpleTypeCompilerLocation =
-			location ?? this.target.suggestDeclarationLocation?.(type, currentFilenameNamespace ?? NO_DESTINATION_LOCATION) ?? currentFilenameNamespace ?? NO_DESTINATION_LOCATION;
+			location ??
+			this.target.suggestDeclarationLocation?.(type, currentFilenameNamespace ?? NO_DESTINATION_LOCATION) ??
+			this.getCurrentProgram().entryPoints.get(type) ??
+			currentFilenameNamespace ??
+			NO_DESTINATION_LOCATION;
 
 		const uniqueLocation = this.createUniqueLocation(type, path, suggestedLocation);
 
@@ -615,6 +622,14 @@ export class SimpleTypeCompilerNodeBuilder {
 
 	isDeclaration(node: object): node is SimpleTypeCompilerDeclarationNode {
 		return node instanceof SimpleTypeCompilerDeclarationNode;
+	}
+
+	assertDeclaration(node: SimpleTypeCompilerNode): asserts node is SimpleTypeCompilerDeclarationNode {
+		if (!this.isDeclaration(node)) {
+			const { path, type } = node;
+			const pathString = (path && SimpleTypePath.toString(path, type)) || "<unknown>";
+			throw new Error(`Expected declaration node, got ${node.constructor.name} (from path ${pathString})`);
+		}
 	}
 
 	/**

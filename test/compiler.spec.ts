@@ -1,6 +1,7 @@
 import test from "ava";
 import { RawSourceMap } from "source-map";
 import { SimpleType, SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } from "../src";
+import { JSONSchemaCompilerTarget } from "../src/compile-to/json-schema";
 import { PythonCompilerTarget } from "../src/compile-to/python3";
 import { ThriftCompilerTarget } from "../src/compile-to/thrift";
 import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compiler";
@@ -30,7 +31,7 @@ enum AnnotationType {
 }
 
 /** Blocks allowed in a document. */
-export type DocumentBlock = Text | Table
+export type DocumentBlock = Text | Table | Document
 
 export interface Table {
   header: string[]
@@ -176,6 +177,34 @@ test("compile-to/thrift: Compile test.ts to thrift", ctx => {
 			inputType: types.Document,
 			outputLocation: {
 				fileName: "thrift/schema.thrift"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
+});
+
+test("compile-to/json-schema: Compile test.ts to JSONSchema", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = JSONSchemaCompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "json-schema/schema.json"
 			}
 		}
 	]);

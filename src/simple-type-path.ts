@@ -201,6 +201,21 @@ export const SimpleTypePath = {
 		return path[path.length - 1];
 	},
 
+	lastMustBe<K extends SimpleTypePathStepKind>(path: SimpleTypePath, ...kind: K[]): Extract<SimpleTypePathStep, { step: K }> {
+		const last = SimpleTypePath.last(path);
+		const error = () => new Error(`Path must have a last step of kind ${JSON.stringify(kind)}`);
+
+		if (!last) {
+			throw error();
+		}
+
+		if (!kind.includes(last.step as K)) {
+			throw error();
+		}
+
+		return last as never;
+	},
+
 	withoutLast(path: SimpleTypePath): SimpleTypePath {
 		return path.slice(0, path.length - 1);
 	},

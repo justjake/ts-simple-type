@@ -4,6 +4,7 @@ import { SimpleType, SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } fr
 import { JSONSchemaCompilerTarget } from "../src/compile-to/json-schema";
 import { PythonCompilerTarget } from "../src/compile-to/python3";
 import { ThriftCompilerTarget } from "../src/compile-to/thrift";
+import { Proto3CompilerTarget } from "../src/compile-to/proto3";
 import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compiler";
 import { getTestTypes } from "./helpers/get-test-types";
 
@@ -205,6 +206,34 @@ test("compile-to/json-schema: Compile test.ts to JSONSchema", ctx => {
 			inputType: types.Document,
 			outputLocation: {
 				fileName: "json-schema/schema.json"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
+});
+
+test("compile-to/proto3: Compile test.ts to Proto3", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = Proto3CompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "proto/schema.proto"
 			}
 		}
 	]);

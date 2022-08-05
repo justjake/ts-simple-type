@@ -5,7 +5,7 @@
 
 import { SourceMapGenerator, SourceNode } from "source-map";
 import type * as ts from "typescript";
-import { SimpleType, SimpleTypeAsTypescript, SimpleTypeMember, SimpleTypeMemberAsTypescript } from "../simple-type";
+import { isSimpleTypePrimitive, SimpleType, SimpleTypeAsTypescript, SimpleTypeMember, SimpleTypeMemberAsTypescript } from "../simple-type";
 import { SimpleTypePath, SimpleTypePathStep } from "../simple-type-path";
 import { getTypescriptModule } from "../ts-module";
 import { Visitor, walkRecursive } from "../visitor";
@@ -289,7 +289,7 @@ export class SimpleTypeCompiler {
 		}
 
 		const visitor: Visitor<string | undefined> = ({ type: derivedType, path, visit }) => {
-			if (derivedType.name) {
+			if (derivedType.name && derivedType.name !== "Array") {
 				return derivedType.name;
 			}
 
@@ -297,8 +297,12 @@ export class SimpleTypeCompiler {
 			const originalSimpleType = typescriptType && this.toSimpleType(typescriptType);
 			const type = originalSimpleType || derivedType;
 
-			if (type.name) {
+			if (type.name && type.name !== "Array") {
 				return type.name;
+			}
+
+			if (isSimpleTypePrimitive(type)) {
+				return snakeCaseToCamelCase(type.kind);
 			}
 
 			const lastStepWithNamedType = path
@@ -738,6 +742,16 @@ export const SimpleTypeCompilerLocation = {
 
 	fileAndNamespaceEqual(a: SimpleTypeCompilerLocation, b: SimpleTypeCompilerLocation): boolean {
 		return SimpleTypeCompilerLocation.fileNameEqual(a, b) && SimpleTypeCompilerLocation.namespaceEqual(a, b);
+	},
+
+	/**
+	 * Convert a parent location into an inner location.
+	 */
+	nestInside(parentLocation: SimpleTypeCompilerDeclarationLocation): SimpleTypeCompilerLocation {
+		return {
+			fileName: parentLocation.fileName,
+			namespace: parentLocation.namespace?.concat(parentLocation.name)
+		};
 	}
 };
 

@@ -1,11 +1,12 @@
 import test from "ava";
-import { isSimpleTypeLiteral, SimpleTypePath, SimpleTypePathStepNamedMember, unreachable, Visitor } from "../src";
-import { SimpleTypeCompiler, SimpleTypeCompilerLocation, SimpleTypeCompilerNode } from "../src/transform/compile-simple-type";
-import { toNullableSimpleType } from "../src/transform/inspect-simple-type";
-import { simpleTypeToString } from "../src/transform/simple-type-to-string";
-import { getTestTypes } from "./helpers/get-test-types";
-import * as path from "path";
 import { RawSourceMap } from "source-map";
+import { SimpleType, SimpleTypePath, SimpleTypePathStepNamedMember, Visitor } from "../src";
+import { JSONSchemaCompilerTarget } from "../src/compile-to/json-schema";
+import { PythonCompilerTarget } from "../src/compile-to/python3";
+import { ThriftCompilerTarget } from "../src/compile-to/thrift";
+import { Proto3CompilerTarget } from "../src/compile-to/proto3";
+import { SimpleTypeCompiler, SimpleTypeCompilerDeclarationLocation, SimpleTypeCompilerLocation, SimpleTypeCompilerNode, SimpleTypeCompilerTarget } from "../src/transform/compiler";
+import { getTestTypes } from "./helpers/get-test-types";
 
 const EXAMPLE_TS = `
 type DBTable = 
@@ -17,6 +18,11 @@ type RecordPointer<T extends DBTable = DBTable> = T extends 'space' ?
 	{ table: T; id: string } :
 	{ table: T; id: string; spaceId: string }
 
+// Forcing an anonymous type for testing purpose.
+type TableModal<T extends DBTable = DBTable> = T extends 'space'
+	? { open: false }
+	: ({ open: true, view: string } | { open: false })
+
 enum AnnotationType {
 	Bold,
 	Italic,
@@ -25,12 +31,15 @@ enum AnnotationType {
 	Code
 }
 
-type AliasedType = Text | Table
+/** Blocks allowed in a document. */
+export type DocumentBlock = Text | Table | Document
 
 export interface Table {
   header: string[]
   rows: string[][]
 	parent: RecordPointer<'block'>
+	/** @deprecated */
+	modal: TableModal<'block'>
 	rect?: Rect
 }
 
@@ -63,210 +72,42 @@ type Dimension = {
 
 type Rect = Position & Dimension
 
+/** A persisted document in our database */
 export interface Document {
 	parent: RecordPointer
+	/** Title of the document */
   title: string
+	/** Author's email */
   author: string
-  body: Array<AliasedType>
+  body: Array<DocumentBlock>
 }
 `;
 
-test("Compiler example: compile to Python", ctx => {
+test("Show input Typescript used in tests", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+	const compiler = new SimpleTypeCompiler(typeChecker, () => {
+		return {} as any;
+	});
+
+	const location = compiler.getSourceLocation(compiler.toSimpleType(types.Document));
+	ctx.snapshot(location.sourceMap.sourceContent, "test.ts");
+});
+
+test("compile-to/python3: compile test.ts to Python with custom declaration routing", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 
-	const getPythonImportPath = (outputFileName: string) => {
-		const parsed = path.parse(outputFileName);
-		const dir = parsed.dir === "" ? [] : parsed.dir.split(path.sep);
-		return [...dir, parsed.name].join(".");
-	};
-
-	function mustBeDefined<T>(val: T | undefined): T {
-		if (val === undefined) {
-			throw new Error("Value must be defined");
+	class TestPythonTarget extends PythonCompilerTarget implements SimpleTypeCompilerTarget {
+		suggestDeclarationLocation(type: SimpleType, from: SimpleTypeCompilerLocation): SimpleTypeCompilerLocation | SimpleTypeCompilerDeclarationLocation {
+			if (!type.name) {
+				return {
+					fileName: "editor/generated.py"
+				};
+			}
+			return from;
 		}
-		return val;
 	}
 
-	const compiler = new SimpleTypeCompiler(typeChecker, compiler => ({
-		compileFile(file) {
-			const importFiles = new Set<string>();
-			file.references.forEach(ref => {
-				if (ref.fileName === file.fileName) {
-					return;
-				}
-				importFiles.add(`import ${getPythonImportPath(ref.fileName)}`);
-			});
-			const builder = compiler.anonymousNodeBuilder();
-			const finalNodeList = [...file.nodes];
-			if (importFiles.size) {
-				const refNode = builder.node(Array.from(importFiles)).join("\n");
-				finalNodeList.unshift(refNode);
-			}
-			return builder.node(finalNodeList).join("\n\n");
-		},
-		compileReference(args) {
-			const builder = compiler.anonymousNodeBuilder(args.from);
-			if (SimpleTypeCompilerLocation.fileAndNamespaceEqual(args.from, args.to.location)) {
-				return builder.reference(args.to, `${args.to.location.name}`);
-			}
-
-			const location = args.to.location;
-			const absoluteName = [getPythonImportPath(location.fileName), ...(location.namespace || []), location.name].join(".");
-			return builder.reference(args.to, absoluteName);
-		},
-		compileType: ({ type, path, visit }) => {
-			const builder = compiler.nodeBuilder(type, path);
-
-			if (type.error) {
-				throw new Error(`SimpleType ${type.kind} has error: ${type.error}`);
-			}
-
-			if (isSimpleTypeLiteral(type)) {
-				if (typeof type.value === "boolean") {
-					return type.value ? builder.node("True") : builder.node("False");
-				}
-				return builder.node(`Literal[${JSON.stringify(type.value)}]`);
-			}
-
-			const stdlib = (moduleName: string, name: string) => {
-				return builder.reference({
-					location: {
-						fileName: moduleName,
-						name
-					}
-				});
-			};
-
-			switch (type.kind) {
-				// Primitive-like
-				case "BOOLEAN":
-					return builder.node`bool`;
-				case "STRING":
-					return builder.node("str");
-				case "BIG_INT":
-				case "NUMBER":
-					return builder.node("float");
-				case "NULL":
-				case "UNDEFINED":
-				case "VOID":
-					return builder.node("None");
-				case "DATE":
-					return stdlib("datetime", "datetime");
-				case "UNKNOWN":
-					return builder.node("object"); // Top type https://github.com/python/mypy/issues/3712
-				case "ANY":
-					return stdlib("typing", "Any");
-				case "NEVER":
-					return stdlib("typing", "NoReturn");
-
-				// Skip generic shenanigans.
-				case "ALIAS":
-					return mustBeDefined(Visitor.ALIAS.aliased({ path, type, visit })); // TODO: these don't need to be Optional
-				case "GENERIC_ARGUMENTS":
-					return mustBeDefined(Visitor.GENERIC_ARGUMENTS.aliased({ path, type, visit }));
-
-				// Algebraic types
-				case "UNION": {
-					const nullable = toNullableSimpleType(type);
-					if (nullable.kind === "NULLABLE" && nullable.type.kind !== "NEVER") {
-						const Optional = stdlib("typing", "Optional");
-						return builder.node`${Optional}[${builder.reference(visit(undefined, nullable.type))}]`;
-					} else {
-						const Union = stdlib("typing", "Union");
-						return builder.node([Union, `[`, builder.references(Visitor.UNION.mapVariants({ path, type, visit })).join(", "), `]`]);
-					}
-				}
-				case "INTERSECTION":
-					if (!type.intersected) {
-						throw new Error(`Cannot convert to Python because python has no intersection concept`);
-					}
-					return visit(undefined, type.intersected);
-
-				// List types
-				case "ARRAY":
-					return builder.node`list[${builder.reference(Visitor.ARRAY.numberIndex({ path, type, visit })) ?? "object"}]`;
-				case "TUPLE":
-					return builder.node`${stdlib("typing", "Tuple")}[${builder.references(Visitor.TUPLE.mapIndexedMembers({ path, type, visit })).join(", ")}]`;
-
-				// Object
-				case "INTERFACE":
-				case "CLASS":
-				case "OBJECT": {
-					const name = compiler.assignDeclarationLocation(
-						type,
-						type.name
-							? undefined
-							: {
-									fileName: "editor/generated.py"
-							  }
-					);
-					const members = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
-						path,
-						type,
-						visit: visit.with(({ type, path }) => {
-							const builder = compiler.nodeBuilder(type, path);
-							const step = SimpleTypePath.last(path) as SimpleTypePathStepNamedMember;
-							const member = step.member;
-							return builder.node`    ${member.name}: ${builder.reference(compiler.compileType(type, path, name))}`;
-						})
-					});
-
-					return builder.declaration(name, ["@", stdlib("dataclasses", "dataclass"), `\nclass ${name.name}:\n`, builder.node(members).join("\n") ?? "pass"]);
-				}
-
-				case "ENUM": {
-					const name = compiler.assignDeclarationLocation(type);
-					if (name.name !== type.name) {
-						// eslint-disable-next-line no-console
-						console.warn(`Warning: Enum name ${type.name} does not match class name ${name}; enum type will be incorrect.`);
-					}
-					const members = Visitor.ENUM.mapVariants<SimpleTypeCompilerNode>({
-						path,
-						type,
-						visit: visit.with(({ type, path }) => {
-							if (type.kind !== "ENUM_MEMBER") {
-								throw new Error(`Non ENUM_MEMBER in ENUM`);
-							}
-							if (!isSimpleTypeLiteral(type.type)) {
-								throw new Error(`Non-literal ENUM_MEMBER type: ${simpleTypeToString(type.type)}`);
-							}
-
-							const builder = compiler.nodeBuilder(type, path);
-							return builder.node([`    ${type.name} = `, JSON.stringify(type.type.value)]);
-						})
-					});
-					const enumReference = stdlib("enum", "Enum");
-					return builder.declaration(name, [`class ${name.name}(`, enumReference, `):\n`, builder.node(members).join("\n")]);
-				}
-
-				case "ENUM_MEMBER": {
-					// TODO: ensure this `fullName` matches the actual name of the Enum class declaration, which could be
-					//       renamed by `uniqueName`.
-					return builder.node(type.fullName);
-				}
-
-				case "METHOD":
-				case "FUNCTION": {
-					return builder.node([
-						`Callable[[`,
-						builder.references(Visitor[type.kind].mapParameters({ path, type, visit })).join(", "),
-						`], `,
-						builder.reference(Visitor.FUNCTION.return({ path, type, visit })) ?? "None",
-						`]`
-					]);
-				}
-
-				case "GENERIC_PARAMETER":
-				case "ES_SYMBOL":
-				case "NON_PRIMITIVE":
-				case "PROMISE":
-					throw new Error(`Unsupported type`);
-
-				default:
-					unreachable(type);
-			}
-		}
-	}));
+	const compiler = TestPythonTarget.createCompiler(typeChecker);
 
 	const outputs = compiler.compileProgram([
 		{
@@ -291,24 +132,24 @@ test("Compiler example: compile to Python", ctx => {
 	ctx.snapshot(outputs.files.size, "output count");
 });
 
-test("assignDeclarationLocation: same location = same name", ctx => {
+test("SimpleTypeCompiler#assignDeclarationLocation: same location = same name", ctx => {
 	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
 	const compiler = new SimpleTypeCompiler(typeChecker, () => {
 		return {} as any;
 	});
 
 	const DocumentType = compiler.toSimpleType(types.Document);
-	const name = compiler.assignDeclarationLocation(DocumentType);
-	const name2 = compiler.assignDeclarationLocation(DocumentType);
+	const name = compiler.assignDeclarationLocation(DocumentType, []);
+	const name2 = compiler.assignDeclarationLocation(DocumentType, []);
 	ctx.is(name, name2);
 
-	const name3 = compiler.assignDeclarationLocation(DocumentType, {
+	const name3 = compiler.assignDeclarationLocation(DocumentType, [], {
 		fileName: "random/output.py"
 	});
 	ctx.is(name, name3);
 });
 
-test("assignDeclarationLocation: same location with different type gives unique names", ctx => {
+test("SimpleTypeCompiler#assignDeclarationLocation: same location with different type gives unique names", ctx => {
 	const one = getTestTypes(["Document"], EXAMPLE_TS);
 	const two = getTestTypes(["Document"], EXAMPLE_TS);
 	const compiler1 = new SimpleTypeCompiler(one.typeChecker, () => {
@@ -320,11 +161,95 @@ test("assignDeclarationLocation: same location with different type gives unique 
 
 	const doc1 = compiler1.toSimpleType(one.types.Document);
 	const doc2 = compiler2.toSimpleType(two.types.Document);
-	const name1 = compiler1.assignDeclarationLocation(doc1);
-	const name2 = compiler1.assignDeclarationLocation(doc2);
+	const name1 = compiler1.assignDeclarationLocation(doc1, []);
+	const name2 = compiler1.assignDeclarationLocation(doc2, []);
 
 	ctx.not(name1.name, name2.name);
 	ctx.true(SimpleTypeCompilerLocation.fileAndNamespaceEqual(name1, name2));
+});
+
+test("compile-to/thrift: Compile test.ts to thrift", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = ThriftCompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "thrift/schema.thrift"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
+});
+
+test("compile-to/json-schema: Compile test.ts to JSONSchema", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = JSONSchemaCompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "json-schema/schema.json"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
+});
+
+test("compile-to/proto3: Compile test.ts to Proto3", ctx => {
+	const { types, typeChecker } = getTestTypes(["Document"], EXAMPLE_TS);
+
+	const compiler = Proto3CompilerTarget.createCompiler(typeChecker);
+
+	const outputs = compiler.compileProgram([
+		{
+			inputType: types.Document,
+			outputLocation: {
+				fileName: "proto/schema.proto"
+			}
+		}
+	]);
+
+	for (const [fileName, output] of outputs.files) {
+		ctx.snapshot(output.text, fileName);
+		const map = output.sourceMap.toJSON();
+		const snapshotSourceMap: RawSourceMap = {
+			...map,
+			sources: map.sources.map((s, i) => `source ${i}`),
+			sourcesContent: map.sourcesContent?.map((s, i) => `source ${i}: length ${s?.length}`)
+		};
+		ctx.snapshot(snapshotSourceMap, `${fileName}.map`);
+	}
+
+	ctx.snapshot(outputs.files.size, "output count");
 });
 
 test("README example: Typescript to C", ctx => {
@@ -368,7 +293,7 @@ interface Location {
 				case "CLASS":
 				case "OBJECT": {
 					// Declarations are assigned locations in a compiler output file.
-					const declarationLocation = compiler.assignDeclarationLocation(type);
+					const declarationLocation = compiler.assignDeclarationLocation(type, path);
 					const fields = Visitor[type.kind].mapNamedMembers<SimpleTypeCompilerNode>({
 						path,
 						type,
@@ -383,11 +308,11 @@ interface Location {
 							// The `builder.reference` function will compiler a *reference* to the target declaration
 							// using your `compileReference` callback.
 							// If the target is not a declaration, it's returned as-is.
-							const memberType = builder.reference(compiler.compileType(type, path));
+							const memberType = builder.reference(compiler.compileType(type, path, declarationLocation));
 							return builder.node`  ${memberType} ${member.name};`;
 						})
 					});
-					const newlineSeparatedFields = builder.node(fields).join("\n");
+					const newlineSeparatedFields = builder.node(fields).joinNodes("\n");
 					return builder.declaration(declarationLocation, builder.node`typedef struct {\n${newlineSeparatedFields}\n} ${declarationLocation.name};`);
 				}
 				default:
@@ -408,7 +333,7 @@ interface Location {
 		compileFile(file) {
 			const builder = compiler.anonymousNodeBuilder();
 			const includes = Array.from(new Set(file.references.map(ref => ref.fileName))).filter(fileName => fileName !== file.fileName);
-			return builder.node([...includes.map(include => builder.node`#include "${include}"`), ...file.nodes]).join("\n\n");
+			return builder.node([...includes.map(include => builder.node`#include "${include}"`), ...file.nodes]).joinNodes("\n\n");
 		}
 	}));
 

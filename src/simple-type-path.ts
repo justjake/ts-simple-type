@@ -1,4 +1,5 @@
-import { SimpleType, SimpleTypeFunctionParameter, SimpleTypeMember, SimpleTypeMemberNamed } from "./simple-type";
+import { isDefined } from "./compile-to/thrift";
+import { isSimpleTypeLiteral, SimpleType, SimpleTypeFunctionParameter, SimpleTypeLiteral, SimpleTypeMemberIndexed, SimpleTypeMemberNamed } from "./simple-type";
 import { simpleTypeToString } from "./transform/simple-type-to-string";
 
 type SimpleTypePathStepKind =
@@ -32,7 +33,7 @@ export interface SimpleTypePathStepNamedMember extends SimpleTypePathStepBase {
 
 export interface SimpleTypePathStepIndexedMember extends SimpleTypePathStepBase {
 	step: "INDEXED_MEMBER";
-	member: SimpleTypeMember;
+	member: SimpleTypeMemberIndexed;
 	index: number;
 }
 
@@ -200,6 +201,116 @@ export const SimpleTypePath = {
 		return path[path.length - 1];
 	},
 
+	lastMustBe<K extends SimpleTypePathStepKind>(path: SimpleTypePath, ...kind: K[]): Extract<SimpleTypePathStep, { step: K }> {
+		const last = SimpleTypePath.last(path);
+		const error = () => new Error(`Path must have a last step of kind ${JSON.stringify(kind)}`);
+
+		if (!last) {
+			throw error();
+		}
+
+		if (!kind.includes(last.step as K)) {
+			throw error();
+		}
+
+		return last as never;
+	},
+
+	withoutLast(path: SimpleTypePath): SimpleTypePath {
+		return path.slice(0, path.length - 1);
+	},
+
+	toTypeName(path: SimpleTypePath, target?: SimpleType): string | undefined {
+		if (path.length === 0) {
+			return undefined;
+		}
+
+		let rootTypeName: string | undefined;
+		const parts: string[] = [];
+		for (let i = 0; i < path.length; i++) {
+			const step = path[i];
+			const isLast = i === path.length - 1;
+			if (!rootTypeName && step.from.name) {
+				rootTypeName = step.from.name;
+			}
+
+			switch (step.step) {
+				case "NAMED_MEMBER": {
+					parts.push(camelCaseToPascalCase(snakeCaseToCamelCase(step.member.name)));
+					break;
+				}
+
+				case "PARAMETER": {
+					parts.push(camelCaseToPascalCase(snakeCaseToCamelCase(step.parameter.name)));
+					break;
+				}
+
+				case "RETURN": {
+					parts.push("ReturnType");
+					break;
+				}
+
+				case "STRING_INDEX": {
+					parts.push("Value");
+					break;
+				}
+
+				case "NUMBER_INDEX": {
+					parts.push("Item");
+					break;
+				}
+
+				case "VARIANT": {
+					if (step.from.kind === "UNION") {
+						if (step.from.name && step.from.name !== rootTypeName) {
+							parts.push(step.from.name);
+							break;
+						}
+
+						const stepTargetType = isLast ? target : path[i + 1].from;
+						if (stepTargetType && stepTargetType.kind !== "TUPLE") {
+							// Try to use discriminated union information to label type
+							const targetMembers = "members" in stepTargetType ? stepTargetType.members : undefined;
+							if (!targetMembers) {
+								break;
+							}
+							const nameableMembers = targetMembers.filter((m): m is SimpleTypeMemberNamed & { type: SimpleTypeLiteral } => isSimpleTypeLiteral(m.type));
+							const discriminantNames = step.from.discriminantMembers?.map(m => ("name" in m ? m.name : undefined)).filter(isDefined);
+							const nameableMember = nameableMembers.find(m => discriminantNames?.includes(m.name)) || nameableMembers[0];
+							if (!nameableMember) {
+								break;
+							}
+
+							const valueName = camelCaseToPascalCase(snakeCaseToCamelCase(String(nameableMember.type.value)));
+							const memberName = camelCaseToPascalCase(snakeCaseToCamelCase(nameableMember.name));
+							const order = [valueName];
+
+							// { open: true } | { open: false } -> OpenTrue | OpenFalse
+							// { count: 1 } | { count: 2 } -> Count1 | Count2
+							if (memberName !== "Type" && memberName !== "Kind") {
+								order.unshift(memberName);
+							}
+
+							// { table: "foo" } | { table: "bar" } -> FooTable | BarTable
+							if (nameableMember.type.kind === "STRING_LITERAL") {
+								order.reverse();
+							}
+
+							parts.push(...order);
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		if (parts.length === 0) {
+			return undefined;
+		}
+
+		return [rootTypeName, ...parts].filter(Boolean).join("");
+	},
+
 	toTypescript(path: SimpleTypePath): string {
 		const parts: string[] = [];
 		if (path.length === 0) {
@@ -358,4 +469,12 @@ export const SimpleTypePath = {
 
 export function unreachable(x: never): never {
 	throw new Error(`Should be unreachable, instead exists: ${JSON.stringify(x)}`);
+}
+
+export function snakeCaseToCamelCase(snakeCase: string): string {
+	return snakeCase.replace(/([-_]\w)/g, match => match.toUpperCase().slice(1));
+}
+
+function camelCaseToPascalCase(camelCase: string) {
+	return camelCase.slice(0, 1).toUpperCase() + camelCase.slice(1);
 }

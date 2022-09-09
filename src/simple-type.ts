@@ -167,7 +167,7 @@ export interface SimpleTypeEnum extends SimpleTypeBase {
 export interface SimpleTypeUnion extends SimpleTypeBase {
 	readonly kind: "UNION";
 	readonly types: SimpleType[];
-	readonly discriminantMembers?: Array<SimpleTypeMember | SimpleTypeMemberNamed>;
+	readonly discriminantMembers?: Array<SimpleTypeMemberIndexed | SimpleTypeMemberNamed>;
 }
 
 export interface SimpleTypeIntersection extends SimpleTypeBase {
@@ -195,6 +195,10 @@ export interface SimpleTypeMember {
 
 export interface SimpleTypeMemberNamed extends SimpleTypeMember {
 	readonly name: string;
+}
+
+export interface SimpleTypeMemberIndexed extends SimpleTypeMember {
+	readonly index: number;
 }
 
 export interface SimpleTypeObjectTypeBase extends SimpleTypeBase {
@@ -299,7 +303,7 @@ export interface SimpleTypeAlias extends SimpleTypeBase {
 
 export interface SimpleTypeTuple extends SimpleTypeBase {
 	readonly kind: "TUPLE";
-	readonly members: SimpleTypeMember[];
+	readonly members: SimpleTypeMemberIndexed[];
 	readonly rest?: boolean;
 }
 

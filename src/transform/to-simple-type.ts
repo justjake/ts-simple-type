@@ -18,12 +18,14 @@ import {
 	SimpleTypeMember,
 	SimpleTypeMemberNamed,
 	SimpleTypeMethod,
-	SimpleTypeObject
+	SimpleTypeObject,
+	SimpleTypeUnion
 } from "../simple-type";
 import { getTypescriptModule } from "../ts-module";
 import { simplifySimpleTypes } from "../utils/simple-type-util";
 import {
 	getDeclaration,
+	getDiscriminantPropertiesOfType,
 	getModifiersFromDeclaration,
 	getTypeArguments,
 	getTypeOfValueSymbol,
@@ -326,6 +328,25 @@ function memberWithMethods<T extends SimpleTypeMember>(obj: T, symbol: ts.Symbol
 	};
 }
 
+function namedMember(symbol: ts.Symbol, memberOfType: Type, options: ToSimpleTypeInternalOptions): SimpleTypeMemberNamed {
+	const declaration = getDeclaration(symbol, ts);
+	const result: Writable<SimpleTypeMemberNamed> = {
+		name: symbol.name,
+		type: toSimpleTypeCached(getTypeOfValueSymbol(symbol, options.checker), options)
+	};
+
+	if (symbolIsOptional(symbol, ts)) {
+		result.optional = true;
+	}
+
+	const modifiers = declaration != null ? getModifiersFromDeclaration(declaration, ts) : [];
+	if (modifiers.length) {
+		result.modifiers = modifiers;
+	}
+
+	return memberWithMethods(result, symbol, memberOfType, options);
+}
+
 function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions): SimpleType {
 	const { checker, ts } = options;
 
@@ -407,32 +428,23 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 
 	// Unions and intersections
 	else if (type.isUnion()) {
-		simpleType = {
+		const result: Writable<SimpleTypeUnion> = {
 			kind: "UNION",
 			types: simplifySimpleTypes(type.types.map(t => toSimpleTypeCached(t, options))),
 			name
 		};
+
+		const discriminants = getDiscriminantPropertiesOfType(type);
+		if (discriminants) {
+			const discriminantMembers = discriminants.map(symbol => namedMember(symbol, type, options));
+			result.discriminantMembers = discriminantMembers;
+		}
+
+		simpleType = result;
 	} else if (type.isIntersection()) {
 		// Approximate the concrete intersection as properties.
 		// TODO: call signatures, etc.
-		const members = type.getProperties().map(symbol => {
-			const declaration = getDeclaration(symbol, ts);
-			const result: Writable<SimpleTypeMemberNamed> = {
-				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfValueSymbol(symbol, options.checker), options)
-			};
-
-			if (symbolIsOptional(symbol, ts)) {
-				result.optional = true;
-			}
-
-			const modifiers = declaration != null ? getModifiersFromDeclaration(declaration, ts) : [];
-			if (modifiers.length) {
-				result.modifiers = modifiers;
-			}
-
-			return memberWithMethods(result, symbol, type, options);
-		});
+		const members = type.getProperties().map(symbol => namedMember(symbol, type, options));
 
 		const intersection: Writable<SimpleTypeIntersection> = {
 			kind: "INTERSECTION",
@@ -481,7 +493,8 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			members: types.map((childType, i) => {
 				return {
 					optional: i >= minLength,
-					type: toSimpleTypeCached(childType, options)
+					type: toSimpleTypeCached(childType, options),
+					index: i
 				};
 			}),
 			name
@@ -524,18 +537,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 					// more info.
 					if (declaration == null) return null;
 
-					const result: Writable<SimpleTypeMemberNamed> = {
-						name: symbol.name,
-						type: toSimpleTypeCached(checker.getTypeAtLocation(declaration), options)
-					};
-					if (symbolIsOptional(symbol, ts)) {
-						result.optional = true;
-					}
-					const modifiers = getModifiersFromDeclaration(declaration, ts);
-					if (modifiers.length > 0) {
-						result.modifiers = modifiers;
-					}
-					return memberWithMethods(result, symbol, type, options);
+					return namedMember(symbol, type, options);
 				})
 				.filter((member): member is NonNullable<typeof member> => member != null);
 
@@ -561,24 +563,7 @@ function toSimpleTypeInternal(type: Type, options: ToSimpleTypeInternalOptions):
 			};
 		}
 
-		const members = type.getProperties().map(symbol => {
-			const declaration = getDeclaration(symbol, ts);
-			const result: Writable<SimpleTypeMemberNamed> = {
-				name: symbol.name,
-				type: toSimpleTypeCached(getTypeOfValueSymbol(symbol, options.checker), options)
-			};
-
-			if (symbolIsOptional(symbol, ts)) {
-				result.optional = true;
-			}
-
-			const modifiers = declaration != null ? getModifiersFromDeclaration(declaration, ts) : [];
-			if (modifiers.length) {
-				result.modifiers = modifiers;
-			}
-
-			return memberWithMethods(result, symbol, type, options);
-		});
+		const members = type.getProperties().map(symbol => namedMember(symbol, type, options));
 
 		const ctor = getSimpleFunctionFromCallSignatures(type.getConstructSignatures(), options) as SimpleTypeFunction;
 

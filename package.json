@@ -80,6 +80,7 @@
 		]
 	},
 	"dependencies": {
+		"@sinclair/typebox": "^0.24.22",
 		"source-map": "^0.7.4"
 	}
 }

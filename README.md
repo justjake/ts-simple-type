@@ -14,7 +14,7 @@ Typescript also famously avoids emitting any code based on type level informatio
 
 There are many libraries that claim to convert your Typescript types to other formats, such as [ts-json-schema-generator](https://github.com/vega/ts-json-schema-generator), [ts-to-zod](https://github.com/fabien0102/ts-to-zod), or [typeconv](https://github.com/grantila/typeconv/)/[core-types-ts](https://github.com/grantila/core-types-ts). These libraries work by *interpreting the Typescript AST*, essentially re-implementing a bare-bones type system from scratch. Most do not support advanced Typescript features like generic application, mapped types, or string literal types. `@jitl/ts-simple-type` avoids these limitations by using Typescript's first-party `ts.TypeChecker` API to analyze types. This library is focused on the *semantic meaning* of your types, not on how they are *syntactically declared*.
 
-Our `isAssignableToType` function has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/justjake/ts-simple-type/blob/master/test-types/test-types.ts)).
+Our `isAssignableToType` function has more than 35000 tests comparing results to actual Typescript diagnostics (see [test-types.ts](https://github.com/justjake/ts-simple-type/blob/main/test/helpers/test-assignment.ts).
 
 ## Installation
 

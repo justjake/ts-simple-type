@@ -1,4 +1,5 @@
-import { DEFAULT_GENERIC_PARAMETER_TYPE, DEFAULT_RESULT_CACHE, NEVER_TYPE } from "../constants";
+import { DEFAULT_GENERIC_PARAMETER_TYPE, DEFAULT_RESULT_CACHE, NEVER_TYPE } from "../constants"
+import { getBigintInterfaceSimpleType, getNumberInterfaceSimpleType, getStringInterfaceSimpleType, getSymbolInterfaceSimpleType } from "../frozenTypes"
 import {
 	isSimpleTypeLiteral,
 	isSimpleTypePrimitive,
@@ -11,25 +12,27 @@ import {
 	SimpleTypeMemberNamed,
 	SimpleTypeObject,
 	SimpleTypeObjectTypeBase,
-	SimpleTypeTuple
-} from "../simple-type";
-import { simpleTypeToString } from "../transform/simple-type-to-string";
-import { and, or } from "../utils/list-util";
-import { resolveType as resolveTypeUnsafe } from "../utils/resolve-type";
-import { extendTypeParameterMap, getTupleLengthType } from "../utils/simple-type-util";
-import { isAssignableToSimpleTypeKind } from "./is-assignable-to-simple-type-kind";
-import { SimpleTypeComparisonOptions } from "./simple-type-comparison-options";
+	SimpleTypeTuple,
+} from "../simple-type"
+import { simpleTypeToString } from "../transform/simple-type-to-string"
+import { and, or } from "../utils/list-util"
+import { resolveType as resolveTypeUnsafe } from "../utils/resolve-type"
+import { extendTypeParameterMap, getTupleLengthType } from "../utils/simple-type-util"
+
+import { isAssignableToSimpleTypeKind } from "./is-assignable-to-simple-type-kind"
+import { SimpleTypeComparisonOptions } from "./simple-type-comparison-options"
 
 interface IsAssignableToSimpleTypeInternalOptions {
-	config: SimpleTypeComparisonOptions;
-	cache: WeakMap<SimpleType, WeakMap<SimpleType, boolean>>;
-	insideType: Set<SimpleType>;
-	comparingTypes: Map<SimpleType, Set<SimpleType>>;
-	genericParameterMapA: Map<string, SimpleType>;
-	genericParameterMapB: Map<string, SimpleType>;
-	preventCaching: () => void;
-	operations: { value: number };
-	depth: number;
+	config: SimpleTypeComparisonOptions
+	cache: WeakMap<SimpleType, WeakMap<SimpleType, boolean>>
+	insideType: Set<SimpleType>
+	comparingTypes: Map<SimpleType, Set<SimpleType>>
+	genericParameterMapA: Map<string, SimpleType>
+	genericParameterMapB: Map<string, SimpleType>
+	preventCaching: () => void
+	operations: { value: number }
+	depth: number
+	disableOverlapCheck?: SimpleType
 }
 
 /**
@@ -39,7 +42,7 @@ interface IsAssignableToSimpleTypeInternalOptions {
  * @param config
  */
 export function isAssignableToSimpleType(typeA: SimpleType, typeB: SimpleType, config?: SimpleTypeComparisonOptions): boolean {
-	const userCache = config?.cache;
+	const userCache = config?.cache
 
 	config = {
 		...config,
@@ -48,12 +51,12 @@ export function isAssignableToSimpleType(typeA: SimpleType, typeB: SimpleType, c
 		strictFunctionTypes: config?.strictFunctionTypes ?? config?.strict ?? true,
 		strictNullChecks: config?.strictNullChecks ?? config?.strict ?? true,
 		maxDepth: config?.maxDepth ?? 50,
-		maxOps: config?.maxOps ?? 1000
-	};
+		maxOps: config?.maxOps ?? 1000,
+	}
 
-	const cacheKey = `${config.strict}:${config.strictFunctionTypes}:${config.strictNullChecks}`;
-	const cache = DEFAULT_RESULT_CACHE.get(cacheKey) || new WeakMap();
-	DEFAULT_RESULT_CACHE.set(cacheKey, cache);
+	const cacheKey = `${config.strict}:${config.strictFunctionTypes}:${config.strictNullChecks}`
+	const cache = DEFAULT_RESULT_CACHE.get(cacheKey) || new WeakMap()
+	DEFAULT_RESULT_CACHE.set(cacheKey, cache)
 
 	return isAssignableToSimpleTypeCached(typeA, typeB, {
 		config,
@@ -64,13 +67,13 @@ export function isAssignableToSimpleType(typeA: SimpleType, typeB: SimpleType, c
 		comparingTypes: new Map(),
 		genericParameterMapA: new Map(),
 		genericParameterMapB: new Map(),
-		preventCaching: () => {}
-	});
+		preventCaching: () => {},
+	})
 }
 
 function isAssignableToSimpleTypeCached(typeA: SimpleType, typeB: SimpleType, options: IsAssignableToSimpleTypeInternalOptions): boolean {
-	let typeACache = options.cache.get(typeA)!;
-	let preventCaching = false;
+	let typeACache = options.cache.get(typeA)!
+	let preventCaching = false
 
 	if (typeACache?.has(typeB)) {
 		if (options.config.debug) {
@@ -78,10 +81,10 @@ function isAssignableToSimpleTypeCached(typeA: SimpleType, typeB: SimpleType, op
 				options,
 				"caching",
 				`Found cache when comparing: ${simpleTypeToStringLazy(typeA)} (${typeA.kind}) and ${simpleTypeToStringLazy(typeB)} (${typeB.kind}). Cache content: ${typeACache.get(typeB)}`
-			);
+			)
 		}
 
-		return typeACache.get(typeB)!;
+		return typeACache.get(typeB)!
 	}
 
 	// Call "isAssignableToSimpleTypeInternal" with a mutated options object
@@ -95,10 +98,10 @@ function isAssignableToSimpleTypeCached(typeA: SimpleType, typeB: SimpleType, op
 		comparingTypes: options.comparingTypes,
 		cache: options.cache,
 		preventCaching: () => {
-			options.preventCaching();
-			preventCaching = true;
-		}
-	});
+			options.preventCaching()
+			preventCaching = true
+		},
+	})
 
 	if (!preventCaching) {
 		/*if (options.config.debug) {
@@ -108,15 +111,15 @@ function isAssignableToSimpleTypeCached(typeA: SimpleType, typeB: SimpleType, op
 				`Setting cache for comparison between ${simpleTypeToStringLazy(typeA)} (${typeA.kind}) and ${simpleTypeToStringLazy(typeB)} (${typeB.kind}). Result: ${result}`
 			);
 		}*/
-		if (typeACache == null) {
-			typeACache = new WeakMap();
-			options.cache.set(typeA, typeACache);
+		if (typeACache === undefined) {
+			typeACache = new WeakMap()
+			options.cache.set(typeA, typeACache)
 		}
 
-		typeACache.set(typeB, result);
+		typeACache.set(typeB, result)
 	}
 
-	return result;
+	return result
 }
 
 function isCacheableType(simpleType: SimpleType, options: IsAssignableToSimpleTypeInternalOptions): boolean {
@@ -124,45 +127,45 @@ function isCacheableType(simpleType: SimpleType, options: IsAssignableToSimpleTy
 		case "UNION":
 		case "INTERSECTION":
 			if (options.genericParameterMapA.size !== 0 || options.genericParameterMapB.size !== 0) {
-				return false;
+				return false
 			}
 
-			break;
+			break
 	}
-	return !("typeParameters" in simpleType) && !["GENERIC_ARGUMENTS", "GENERIC_PARAMETER", "PROMISE", "LAZY"].includes(simpleType.kind);
+	return !("typeParameters" in simpleType) && !["GENERIC_ARGUMENTS", "GENERIC_PARAMETER", "PROMISE", "LAZY"].includes(simpleType.kind)
 }
 
 function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, options: IsAssignableToSimpleTypeInternalOptions): boolean {
 	// It's assumed that the "options" parameter is already an unique reference that is safe to mutate.
 
 	// Mutate depth and "operations"
-	options.depth = options.depth + 1;
-	options.operations.value++;
+	options.depth = options.depth + 1
+	options.operations.value++
 
 	// Handle debugging nested calls to isAssignable
 	if (options.config.debug === true) {
-		logDebugHeader(typeA, typeB, options);
+		logDebugHeader(typeA, typeB, options)
 	}
 
 	if (options.depth >= options.config.maxDepth! || options.operations.value >= options.config.maxOps!) {
 		if (options.config.debug) {
-			logDebug(options, "comparing types", `Returns true because depth ${options.depth} >= ${options.config.maxDepth} || ${options.operations.value} >= ${options.config.maxOps}`);
+			logDebug(options, "comparing types", `Returns true because depth ${options.depth} >= ${options.config.maxDepth} || ${options.operations.value} >= ${options.config.maxOps}`)
 		}
-		options.preventCaching();
-		return true;
+		options.preventCaching()
+		return true
 	}
 
 	// When comparing types S and T, the relationship in question is assumed to be true
 	//   for every directly or indirectly nested occurrence of the same S and the same T
 	if (options.comparingTypes.has(typeA)) {
 		if (options.comparingTypes.get(typeA)!.has(typeB)) {
-			options.preventCaching();
+			options.preventCaching()
 
 			if (options.config.debug) {
-				logDebug(options, "comparing types", "Returns true because this relation is already being checked");
+				logDebug(options, "comparing types", "Returns true because this relation is already being checked")
 			}
 
-			return true;
+			return true
 		}
 	}
 
@@ -175,12 +178,12 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 				`{${typeA.kind}, ${typeB.kind}} {typeA: ${options.insideType.has(typeA)}} {typeB: ${options.insideType.has(typeB)}} {insideTypeMap: ${Array.from(options.insideType.keys())
 					.map(t => simpleTypeToStringLazy(t))
 					.join()}}`
-			);
+			)
 		}
 
-		options.preventCaching();
+		options.preventCaching()
 
-		return true;
+		return true
 	}
 
 	// Handle two types being equal
@@ -188,40 +191,40 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 	if (isCacheableType(typeA, options) && isCacheableType(typeB, options)) {
 		if (typeA === typeB) {
 			if (options.config.debug) {
-				logDebug(options, "equal", "The two types are equal!", typeA.kind, typeB.kind);
+				logDebug(options, "equal", "The two types are equal!", typeA.kind, typeB.kind)
 			}
-			return true;
+			return true
 		}
 	} else {
-		options.preventCaching();
+		options.preventCaching()
 	}
 
 	// Make it possible to overwrite default behavior by running user defined logic for comparing types
-	if (options.config.isAssignable != null) {
-		const result = options.config.isAssignable(typeA, typeB, options.config);
-		if (result != null) {
+	if (options.config.isAssignable !== undefined) {
+		const result = options.config.isAssignable(typeA, typeB, options.config)
+		if (result !== undefined) {
 			//options.preventCaching();
-			return result;
+			return result
 		}
 	}
 
 	// Any and unknown. Everything is assignable to "ANY" and "UNKNOWN"
 	if (typeA.kind === "UNKNOWN" || typeA.kind === "ANY") {
-		return true;
+		return true
 	}
 
 	// Mutate options and add this comparison to "comparingTypes".
 	// Only do this if one of the types is not a primitive to save memory.
 	if (!isSimpleTypePrimitive(typeA) && !isSimpleTypePrimitive(typeB)) {
-		const comparingTypes = new Map(options.comparingTypes);
+		const comparingTypes = new Map(options.comparingTypes)
 
 		if (comparingTypes.has(typeA)) {
-			comparingTypes.get(typeA)!.add(typeB);
+			comparingTypes.get(typeA)!.add(typeB)
 		} else {
-			comparingTypes.set(typeA, new Set([typeB]));
+			comparingTypes.set(typeA, new Set([typeB]))
 		}
 
-		options.comparingTypes = comparingTypes;
+		options.comparingTypes = comparingTypes
 	}
 
 	// #####################
@@ -233,8 +236,8 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// Some types seems to absorb other types when type checking a union (eg. 'unknown').
 			// Usually typescript will absorb those types for us, but not when working with generic parameters.
 			// The following line needs to be improved.
-			const types = typeB.types.filter(t => resolveType(t, options.genericParameterMapB) !== DEFAULT_GENERIC_PARAMETER_TYPE);
-			return and(types, childTypeB => isAssignableToSimpleTypeCached(typeA, childTypeB, options));
+			const types = typeB.types.filter(t => resolveType(t, options.genericParameterMapB) !== DEFAULT_GENERIC_PARAMETER_TYPE)
+			return and(types, childTypeB => isAssignableToSimpleTypeCached(typeA, childTypeB, options))
 		}
 
 		// [typeB] (expand)
@@ -242,41 +245,41 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// If we compare an intersection against an intersection, we need to compare from typeA and not typeB
 			// Example: [string, number] & [string] === [string, number] & [string]
 			if (typeA.kind === "INTERSECTION") {
-				break;
+				break
 			}
 
-			const combined = reduceIntersectionIfPossible(typeB, options.genericParameterMapB);
+			const combined = reduceIntersectionIfPossible(typeB, options.genericParameterMapB)
 
 			if (combined.kind === "NEVER") {
 				if (options.config.debug) {
-					logDebug(options, "intersection", `Combining types in intersection is impossible. Comparing with 'never' instead.`);
+					logDebug(options, "intersection", `Combining types in intersection is impossible. Comparing with 'never' instead.`)
 				}
 
-				return isAssignableToSimpleTypeCached(typeA, { kind: "NEVER" }, options);
+				return isAssignableToSimpleTypeCached(typeA, { kind: "NEVER" }, options)
 			}
 
 			if (options.config.debug) {
 				if (combined !== typeB) {
-					logDebug(options, "intersection", `Types in intersection were combined into: ${simpleTypeToStringLazy(combined)}`);
+					logDebug(options, "intersection", `Types in intersection were combined into: ${simpleTypeToStringLazy(combined)}`)
 				}
 			}
 
 			if (combined.kind !== "INTERSECTION") {
-				return isAssignableToSimpleTypeCached(typeA, combined, options);
+				return isAssignableToSimpleTypeCached(typeA, combined, options)
 			}
 
 			// An intersection type I is assignable to a type T if any type in I is assignable to T.
-			return or(combined.types, memberB => isAssignableToSimpleTypeCached(typeA, memberB, options));
+			return or(combined.types, memberB => isAssignableToSimpleTypeCached(typeA, memberB, options))
 		}
 
 		// [typeB] (expand)
 		case "ALIAS": {
-			return isAssignableToSimpleTypeCached(typeA, typeB.target, options);
+			return isAssignableToSimpleTypeCached(typeA, typeB.target, options)
 		}
 
 		// [typeB] (expand)
 		case "GENERIC_ARGUMENTS": {
-			const updatedGenericParameterMapB = extendTypeParameterMap(typeB, options.genericParameterMapB);
+			const updatedGenericParameterMapB = extendTypeParameterMap(typeB, options.genericParameterMapB)
 
 			if (options.config.debug) {
 				logDebug(
@@ -287,19 +290,19 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 						.map(([name, type]) => `${name}=${simpleTypeToStringLazy(type)}`)
 						.join("; "),
 					"typeParameters" in typeB.target ? "" : "[No type parameters in target!]"
-				);
+				)
 			}
 
 			return isAssignableToSimpleTypeCached(typeA, typeB.target, {
 				...options,
-				genericParameterMapB: updatedGenericParameterMapB
-			});
+				genericParameterMapB: updatedGenericParameterMapB,
+			})
 		}
 
 		// [typeB] (expand)
 		case "GENERIC_PARAMETER": {
-			const resolvedArgument = options.genericParameterMapB.get(typeB.name);
-			const realTypeB = resolvedArgument || typeB.default || DEFAULT_GENERIC_PARAMETER_TYPE;
+			const resolvedArgument = options.genericParameterMapB.get(typeB.name)
+			const realTypeB = resolvedArgument || typeB.default || DEFAULT_GENERIC_PARAMETER_TYPE
 
 			if (options.config.debug) {
 				logDebug(
@@ -315,10 +318,10 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 					Array.from(options.genericParameterMapB.entries())
 						.map(([name, t]) => `${name}=${simpleTypeToStringLazy(t)}`)
 						.join("; ")
-				);
+				)
 			}
 
-			return isAssignableToSimpleTypeCached(typeA, realTypeB, options);
+			return isAssignableToSimpleTypeCached(typeA, realTypeB, options)
 		}
 	}
 
@@ -328,35 +331,38 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 	switch (typeB.kind) {
 		// [typeB] (compare)
 		case "ENUM_MEMBER": {
-			return isAssignableToSimpleTypeCached(typeA, typeB.type, options);
+			return isAssignableToSimpleTypeCached(typeA, typeB.type, options)
 		}
 
 		// [typeB] (compare)
 		case "ENUM": {
-			return and(typeB.types, childTypeB => isAssignableToSimpleTypeCached(typeA, childTypeB, options));
+			return and(typeB.types, childTypeB => isAssignableToSimpleTypeCached(typeA, childTypeB, options))
 		}
 
 		// [typeB] (compare)
 		case "UNDEFINED":
 		case "NULL": {
-			// When strict null checks are turned off, "undefined" and "null" are in the domain of every type but never
+			// When strict null checks are turned off, "undefined" and "null" are in the domain of every type but never,
+			// and (as of TypeScript 4.7.0) types that normalize to `never`.
+			// https://github.com/microsoft/TypeScript/pull/48111
 			if (!options.config.strictNullChecks) {
-				return typeA.kind !== "NEVER";
+				const reduced = typeA.kind === "INTERSECTION" ? reduceIntersectionIfPossible(typeA, options.genericParameterMapA) : typeA
+				return reduced.kind !== "NEVER"
 			}
 
-			break;
+			break
 		}
 
 		// [typeB] (compare)
 		case "ANY": {
 			// "any" can be assigned to anything but "never"
-			return typeA.kind !== "NEVER";
+			return typeA.kind !== "NEVER"
 		}
 
 		// [typeB] (compare)
 		case "NEVER": {
 			// "never" can be assigned to anything
-			return true;
+			return true
 		}
 	}
 
@@ -366,13 +372,13 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 	switch (typeA.kind) {
 		// [typeA] (expand)
 		case "ALIAS": {
-			return isAssignableToSimpleTypeCached(typeA.target, typeB, options);
+			return isAssignableToSimpleTypeCached(typeA.target, typeB, options)
 		}
 
 		// [typeA] (expand)
 		case "GENERIC_PARAMETER": {
-			const resolvedArgument = options.genericParameterMapA.get(typeA.name);
-			const realTypeA = resolvedArgument || typeA.default || DEFAULT_GENERIC_PARAMETER_TYPE;
+			const resolvedArgument = options.genericParameterMapA.get(typeA.name)
+			const realTypeA = resolvedArgument || typeA.default || DEFAULT_GENERIC_PARAMETER_TYPE
 
 			if (options.config.debug) {
 				logDebug(
@@ -388,15 +394,15 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 					Array.from(options.genericParameterMapA.entries())
 						.map(([name, t]) => `${name}=${simpleTypeToStringLazy(t)}`)
 						.join("; ")
-				);
+				)
 			}
 
-			return isAssignableToSimpleTypeCached(realTypeA, typeB, options);
+			return isAssignableToSimpleTypeCached(realTypeA, typeB, options)
 		}
 
 		// [typeA] (expand)
 		case "GENERIC_ARGUMENTS": {
-			const updatedGenericParameterMapA = extendTypeParameterMap(typeA, options.genericParameterMapA);
+			const updatedGenericParameterMapA = extendTypeParameterMap(typeA, options.genericParameterMapA)
 
 			if (options.config.debug) {
 				logDebug(
@@ -407,13 +413,13 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 						.map(([name, type]) => `${name}=${simpleTypeToStringLazy(type)}`)
 						.join("; "),
 					"typeParameters" in typeA.target ? "" : "[No type parameters in target!]"
-				);
+				)
 			}
 
 			return isAssignableToSimpleTypeCached(typeA.target, typeB, {
 				...options,
-				genericParameterMapA: updatedGenericParameterMapA
-			});
+				genericParameterMapA: updatedGenericParameterMapA,
+			})
 		}
 
 		// [typeA] (expand)
@@ -421,34 +427,41 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// Some types seems to absorb other types when type checking a union (eg. 'unknown').
 			// Usually typescript will absorb those types for us, but not when working with generic parameters.
 			// The following line needs to be improved.
-			const types = typeA.types.filter(t => resolveType(t, options.genericParameterMapA) !== DEFAULT_GENERIC_PARAMETER_TYPE || typeB === DEFAULT_GENERIC_PARAMETER_TYPE);
-			return or(types, childTypeA => isAssignableToSimpleTypeCached(childTypeA, typeB, options));
+			const types = typeA.types.filter(t => resolveType(t, options.genericParameterMapA) !== DEFAULT_GENERIC_PARAMETER_TYPE || typeB === DEFAULT_GENERIC_PARAMETER_TYPE)
+			return or(types, childTypeA => isAssignableToSimpleTypeCached(childTypeA, typeB, options))
 		}
 
 		// [typeA] (expand)
 		case "INTERSECTION": {
-			const combined = reduceIntersectionIfPossible(typeA, options.genericParameterMapA);
+			const combined = reduceIntersectionIfPossible(typeA, options.genericParameterMapA)
 
 			if (combined.kind === "NEVER") {
 				if (options.config.debug) {
-					logDebug(options, "intersection", `Combining types in intersection is impossible. Comparing with 'never' instead.`);
+					logDebug(options, "intersection", `Combining types in intersection is impossible. Comparing with 'never' instead.`)
 				}
 
-				return isAssignableToSimpleTypeCached({ kind: "NEVER" }, typeB, options);
+				return isAssignableToSimpleTypeCached({ kind: "NEVER" }, typeB, options)
 			}
 
 			if (options.config.debug) {
 				if (combined !== typeA) {
-					logDebug(options, "intersection", `Types in intersection were combined into: ${simpleTypeToStringLazy(combined)}`);
+					logDebug(options, "intersection", `Types in intersection were combined into: ${simpleTypeToStringLazy(combined)}`)
 				}
 			}
 
 			if (combined.kind !== "INTERSECTION") {
-				return isAssignableToSimpleTypeCached(combined, typeB, options);
+				return isAssignableToSimpleTypeCached(combined, typeB, options)
 			}
 
 			// A type T is assignable to an intersection type I if T is assignable to each type in I.
-			return and(combined.types, memberA => isAssignableToSimpleTypeCached(memberA, typeB, options));
+			// with special exception - we allow non-overlapping assignments if any single assignment is possible.
+			const hasSomeOverlap = or(combined.types, memberA => isAssignableToSimpleTypeCached(memberA, typeB, options))
+			return and(combined.types, memberA =>
+				isAssignableToSimpleTypeCached(memberA, typeB, {
+					...options,
+					disableOverlapCheck: hasSomeOverlap ? memberA : undefined,
+				})
+			)
 		}
 	}
 
@@ -459,30 +472,30 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 		// [typeA] (compare)
 		case "NON_PRIMITIVE": {
 			if (options.config.debug) {
-				logDebug(options, "object", `Checking if typeB is non-primitive [primitive=${isSimpleTypePrimitive(typeB)}] [hasName=${typeB.name != null}]`);
+				logDebug(options, "object", `Checking if typeB is non-primitive [primitive=${isSimpleTypePrimitive(typeB)}] [hasName=${typeB.name !== undefined}]`)
 			}
 
 			if (isSimpleTypePrimitive(typeB)) {
-				return typeB.name != null;
+				return typeB.name !== undefined
 			}
 
-			return typeB.kind !== "UNKNOWN";
+			return typeB.kind !== "UNKNOWN"
 		}
 
 		// [typeA] (compare)
 		case "ARRAY": {
 			if (typeB.kind === "ARRAY") {
-				return isAssignableToSimpleTypeCached(typeA.type, typeB.type, options);
+				return isAssignableToSimpleTypeCached(typeA.type, typeB.type, options)
 			} else if (typeB.kind === "TUPLE") {
-				return and(typeB.members, memberB => isAssignableToSimpleTypeCached(typeA.type, memberB.type, options));
+				return and(typeB.members, memberB => isAssignableToSimpleTypeCached(typeA.type, memberB.type, options))
 			}
 
-			return false;
+			return false
 		}
 
 		// [typeA] (compare)
 		case "ENUM": {
-			return or(typeA.types, childTypeA => isAssignableToSimpleTypeCached(childTypeA, typeB, options));
+			return or(typeA.types, childTypeA => isAssignableToSimpleTypeCached(childTypeA, typeB, options))
 		}
 
 		// [typeA] (compare)
@@ -491,21 +504,21 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 		case "BIG_INT_LITERAL":
 		case "BOOLEAN_LITERAL":
 		case "ES_SYMBOL_UNIQUE": {
-			return isSimpleTypeLiteral(typeB) ? typeA.value === typeB.value : false;
+			return isSimpleTypeLiteral(typeB) ? typeA.value === typeB.value : false
 		}
 
 		// [typeA] (compare)
 		case "ENUM_MEMBER": {
 			// You can always assign a "number" | "number literal" to a "number literal" enum member type.
 			if (resolveType(typeA.type, options.genericParameterMapA).kind === "NUMBER_LITERAL" && ["NUMBER", "NUMBER_LITERAL"].includes(typeB.kind)) {
-				if (typeB.name != null) {
-					return false;
+				if (typeB.name !== undefined) {
+					return false
 				}
 
-				return true;
+				return true
 			}
 
-			return isAssignableToSimpleTypeCached(typeA.type, typeB, options);
+			return isAssignableToSimpleTypeCached(typeA.type, typeB, options)
 		}
 
 		// [typeA] (compare)
@@ -514,184 +527,192 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 		case "NUMBER":
 		case "ES_SYMBOL":
 		case "BIG_INT": {
-			if (typeB.name != null) {
-				return false;
+			if (typeB.name !== undefined) {
+				return false
 			}
 
 			if (isSimpleTypeLiteral(typeB)) {
-				return PRIMITIVE_TYPE_TO_LITERAL_MAP[typeA.kind] === typeB.kind;
+				return PRIMITIVE_TYPE_TO_LITERAL_MAP[typeA.kind] === typeB.kind
 			}
 
-			return typeA.kind === typeB.kind;
+			return typeA.kind === typeB.kind
 		}
 
 		// [typeA] (compare)
 		case "UNDEFINED":
 		case "NULL": {
-			return typeA.kind === typeB.kind;
+			return typeA.kind === typeB.kind
 		}
 
 		// [typeA] (compare)
 		case "VOID": {
-			return typeB.kind === "VOID" || typeB.kind === "UNDEFINED";
+			return typeB.kind === "VOID" || typeB.kind === "UNDEFINED"
 		}
 
 		// [typeA] (compare)
 		case "NEVER": {
-			return false;
+			return false
 		}
 
 		// [typeA] (compare)
 		// https://www.typescriptlang.org/docs/handbook/type-compatibility.html#comparing-two-functions
 		case "FUNCTION":
 		case "METHOD": {
-			if ("call" in typeB && typeB.call != null) {
-				return isAssignableToSimpleTypeCached(typeA, typeB.call, options);
+			if ("call" in typeB && typeB.call !== undefined) {
+				return isAssignableToSimpleTypeCached(typeA, typeB.call, options)
 			}
 
-			if (typeB.kind !== "FUNCTION" && typeB.kind !== "METHOD") return false;
+			if (typeB.kind !== "FUNCTION" && typeB.kind !== "METHOD") {
+				return false
+			}
 
-			if (typeB.parameters == null || typeB.returnType == null) return typeA.parameters == null || typeA.returnType == null;
-			if (typeA.parameters == null || typeA.returnType == null) return true;
+			if (typeB.parameters === undefined || typeB.returnType === undefined) {
+				return typeA.parameters === undefined || typeA.returnType === undefined
+			}
+			if (typeA.parameters === undefined || typeA.returnType === undefined) {
+				return true
+			}
 
 			// Any return type is assignable to void
 			if (options.config.debug) {
-				logDebug(options, "function", `Checking if return type of typeA is 'void'`);
+				logDebug(options, "function", `Checking if return type of typeA is 'void'`)
 			}
 
 			if (!isAssignableToSimpleTypeKind(typeA.returnType, "VOID")) {
 				//if (!isAssignableToSimpleTypeInternal(typeA.returnType, { kind: "VOID" }, options)) {
 				if (options.config.debug) {
-					logDebug(options, "function", `Return type is not void. Checking return types`);
+					logDebug(options, "function", `Return type is not void. Checking return types`)
 				}
 
 				if (!isAssignableToSimpleTypeCached(typeA.returnType, typeB.returnType, options)) {
-					return false;
+					return false
 				}
 			}
 
 			// If typeA has a type predicate, make sure typeB's matches
 			if (typeA.typePredicate) {
-				if (!typeB.typePredicate) return false;
+				if (!typeB.typePredicate) {
+					return false
+				}
 				if (!isAssignableToSimpleTypeCached(typeA.typePredicate.type, typeB.typePredicate.type, options)) {
-					return false;
+					return false
 				}
 				if (typeA.typePredicate.parameterIndex !== typeB.typePredicate.parameterIndex) {
-					return false;
+					return false
 				}
 			}
 
 			// Test "this" types
-			const typeAThisParam = typeA.parameters.find(arg => arg.name === "this");
-			const typeBThisParam = typeB.parameters.find(arg => arg.name === "this");
+			const typeAThisParam = typeA.parameters.find(arg => arg.name === "this")
+			const typeBThisParam = typeB.parameters.find(arg => arg.name === "this")
 
-			if (typeAThisParam != null && typeBThisParam != null) {
+			if (typeAThisParam !== undefined && typeBThisParam !== undefined) {
 				if (options.config.debug) {
-					logDebug(options, "function", `Checking 'this' param`);
+					logDebug(options, "function", `Checking 'this' param`)
 				}
 
 				if (!isAssignableToSimpleTypeCached(typeAThisParam.type, typeBThisParam.type, options)) {
-					return false;
+					return false
 				}
 			}
 
 			// Get all "non-this" params
-			const paramTypesA = typeAThisParam == null ? typeA.parameters : typeA.parameters.filter(arg => arg !== typeAThisParam);
-			const paramTypesB = typeBThisParam == null ? typeB.parameters : typeB.parameters.filter(arg => arg !== typeBThisParam);
+			const paramTypesA = typeAThisParam === undefined ? typeA.parameters : typeA.parameters.filter(arg => arg !== typeAThisParam)
+			const paramTypesB = typeBThisParam === undefined ? typeB.parameters : typeB.parameters.filter(arg => arg !== typeBThisParam)
 
 			// A function with 0 params can be assigned to any other function
 			if (paramTypesB.length === 0) {
-				return true;
+				return true
 			}
 
 			// A function with more required params than typeA isn't assignable
-			const requiredParamCountB = paramTypesB.reduce((sum, param) => (param.optional || param.rest ? sum : sum + 1), 0);
+			const requiredParamCountB = paramTypesB.reduce((sum, param) => (param.optional || param.rest ? sum : sum + 1), 0)
 			if (requiredParamCountB > paramTypesA.length) {
 				if (options.config.debug) {
-					logDebug(options, "function", `typeB has more required params than typeA: ${requiredParamCountB} > ${paramTypesA.length}`);
+					logDebug(options, "function", `typeB has more required params than typeA: ${requiredParamCountB} > ${paramTypesA.length}`)
 				}
-				return false;
+				return false
 			}
 
-			let prevParamA: SimpleTypeFunctionParameter | undefined = undefined;
-			let prevParamB: SimpleTypeFunctionParameter | undefined = undefined;
+			let prevParamA: SimpleTypeFunctionParameter | undefined = undefined
+			let prevParamB: SimpleTypeFunctionParameter | undefined = undefined
 
 			// Compare the types of each param
 			for (let i = 0; i < Math.max(paramTypesA.length, paramTypesB.length); i++) {
-				let paramA = paramTypesA[i];
-				let paramB = paramTypesB[i];
+				let paramA = paramTypesA[i]
+				let paramB = paramTypesB[i]
 
 				if (options.config.debug) {
 					logDebug(
 						options,
 						"function",
 						`${i} ['${paramA?.name || "???"}' AND '${paramB?.name || "???"}'] Checking parameters ${options.config.strictFunctionTypes ? "[contravariant]" : "[bivariant]"}: [${
-							paramA?.type == null ? "???" : simpleTypeToStringLazy(paramA.type)
-						}  AND  ${paramB?.type == null ? "???" : simpleTypeToStringLazy(paramB.type)}]`
-					);
+							paramA?.type === undefined ? "???" : simpleTypeToStringLazy(paramA.type)
+						}  AND  ${paramB?.type === undefined ? "???" : simpleTypeToStringLazy(paramB.type)}]`
+					)
 				}
 
 				// Try to find the last param in typeA. If it's a rest param, continue with that one
-				if (paramA == null && prevParamA?.rest) {
+				if (paramA === undefined && prevParamA?.rest) {
 					if (options.config.debug) {
-						logDebug(options, "function", `paramA is null and but last param in typeA is rest. Use that one.`);
+						logDebug(options, "function", `paramA is null and but last param in typeA is rest. Use that one.`)
 					}
 
-					paramA = prevParamA;
+					paramA = prevParamA
 				}
 
 				// Try to find the last param in typeB. If it's a rest param, continue with that one
-				if (paramB == null && prevParamB?.rest) {
+				if (paramB === undefined && prevParamB?.rest) {
 					if (options.config.debug) {
-						logDebug(options, "function", `paramB is null and but last param in typeB is rest. Use that one.`);
+						logDebug(options, "function", `paramB is null and but last param in typeB is rest. Use that one.`)
 					}
 
-					paramB = prevParamB;
+					paramB = prevParamB
 				}
 
-				prevParamA = paramA;
-				prevParamB = paramB;
+				prevParamA = paramA
+				prevParamB = paramB
 
 				// If paramA is not present, check if paramB is optional or not present as well
-				if (paramA == null) {
-					if (paramB != null && !paramB.optional && !paramB.rest) {
+				if (paramA === undefined) {
+					if (paramB !== undefined && !paramB.optional && !paramB.rest) {
 						if (options.config.debug) {
-							logDebug(options, "function", `paramA is null and paramB is null, optional or has rest`);
+							logDebug(options, "function", `paramA is null and paramB is null, optional or has rest`)
 						}
-						return false;
+						return false
 					}
 
 					if (options.config.debug) {
-						logDebug(options, "function", `paramA is null and paramB it not null, but is optional or has rest`);
+						logDebug(options, "function", `paramA is null and paramB it not null, but is optional or has rest`)
 					}
 
-					continue;
+					continue
 				}
 
 				// If paramB isn't present, check if paramA is optional
-				if (paramB == null) {
+				if (paramB === undefined) {
 					if (options.config.debug) {
-						logDebug(options, "function", `paramB is 'null' returning true`);
+						logDebug(options, "function", `paramB is 'null' returning true`)
 					}
-					return true;
+					return true
 				}
 
 				// Check if we are comparing a spread against a non-spread
-				const resolvedTypeA = resolveType(paramA.type, options.genericParameterMapA);
-				const resolvedTypeB = resolveType(paramB.type, options.genericParameterMapB);
+				const resolvedTypeA = resolveType(paramA.type, options.genericParameterMapA)
+				const resolvedTypeB = resolveType(paramB.type, options.genericParameterMapB)
 
 				// Unpack the array of rest parameters if possible
-				const paramAType = paramA.rest && resolvedTypeA.kind === "ARRAY" ? resolvedTypeA.type : paramA.type;
-				const paramBType = paramB.rest && resolvedTypeB.kind === "ARRAY" ? resolvedTypeB.type : paramB.type;
+				const paramAType = paramA.rest && resolvedTypeA.kind === "ARRAY" ? resolvedTypeA.type : paramA.type
+				const paramBType = paramB.rest && resolvedTypeB.kind === "ARRAY" ? resolvedTypeB.type : paramB.type
 				if (paramA.rest) {
 					if (options.config.debug) {
-						logDebug(options, "function", `paramA is 'rest' and has been resolved to '${simpleTypeToStringLazy(paramAType)}'`);
+						logDebug(options, "function", `paramA is 'rest' and has been resolved to '${simpleTypeToStringLazy(paramAType)}'`)
 					}
 				}
 
 				if (paramB.rest) {
 					if (options.config.debug) {
-						logDebug(options, "function", `paramB is 'rest' and has been resolved to '${simpleTypeToStringLazy(paramBType)}'`);
+						logDebug(options, "function", `paramB is 'rest' and has been resolved to '${simpleTypeToStringLazy(paramBType)}'`)
 					}
 				}
 
@@ -699,14 +720,14 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 				// Function parameter type checking is bivariant (when strictFunctionTypes is off) and contravariant (when strictFunctionTypes is on)
 				if (!options.config.strictFunctionTypes) {
 					if (options.config.debug) {
-						logDebug(options, "function", `Checking covariant relationship`);
+						logDebug(options, "function", `Checking covariant relationship`)
 					}
 
 					// Strict is off, therefore start by checking the covariant.
 					// The contravariant relationship will be checked afterwards resulting in bivariant behavior
 					if (isAssignableToSimpleTypeCached(paramAType, paramBType, options)) {
 						// Continue to next parameter
-						continue;
+						continue
 					}
 				}
 
@@ -747,25 +768,25 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 							? {
 									...options.config,
 									strictNullChecks: false,
-									strictFunctionTypes: false
+									strictFunctionTypes: false,
 							  }
 							: options.config,
 					cache: new WeakMap(),
 					genericParameterMapB: options.genericParameterMapA,
-					genericParameterMapA: options.genericParameterMapB
-				};
+					genericParameterMapA: options.genericParameterMapB,
+				}
 
 				if (options.config.debug) {
-					logDebug(options, "function", `Checking contravariant relationship`);
+					logDebug(options, "function", `Checking contravariant relationship`)
 				}
 
 				// Contravariant
 				if (!isAssignableToSimpleTypeCached(paramBType, paramAType, newOptions)) {
-					return false;
+					return false
 				}
 			}
 
-			return true;
+			return true
 		}
 
 		// [typeA] (compare)
@@ -775,170 +796,197 @@ function isAssignableToSimpleTypeInternal(typeA: SimpleType, typeB: SimpleType, 
 			// If there are no members check that "typeB" is not assignable to a set of incompatible type kinds
 			// This is to check the empty object {} and Object
 			const typeAHasZeroMembers = isObjectEmpty(typeA, {
-				ignoreOptionalMembers: (["UNKNOWN", "NON_PRIMITIVE"] as SimpleTypeKind[]).includes(typeB.kind)
-			});
+				ignoreOptionalMembers: (["UNKNOWN", "NON_PRIMITIVE"] as SimpleTypeKind[]).includes(typeB.kind),
+			})
 
-			if (typeAHasZeroMembers && typeA.call == null && (typeA.ctor == null || typeA.kind === "CLASS")) {
+			if (typeAHasZeroMembers && typeA.call === undefined && (typeA.ctor === undefined || typeA.kind === "CLASS")) {
 				if (options.config.debug) {
-					logDebug(options, "object-type", `typeA is the empty object '{}'`);
+					logDebug(options, "object-type", `typeA is the empty object '{}'`)
 				}
 
 				return !isAssignableToSimpleTypeKind(typeB, ["NULL", "UNDEFINED", "NEVER", "VOID", ...(options.config.strictNullChecks ? ["UNKNOWN"] : [])] as SimpleTypeKind[], {
-					matchAny: false
-				});
+					matchAny: false,
+				})
 			}
 
 			switch (typeB.kind) {
 				case "FUNCTION":
 				case "METHOD":
-					return typeA.call != null && isAssignableToSimpleTypeCached(typeA.call, typeB, options);
+					return typeA.call !== undefined && isAssignableToSimpleTypeCached(typeA.call, typeB, options)
 
 				case "INTERFACE":
 				case "OBJECT":
 				case "CLASS": {
 					// Test both callable types
-					const membersA = typeA.members || [];
-					const membersB = typeB.members || [];
+					const membersA = typeA.members || []
+					const membersB = typeB.members || []
 
-					options.insideType = new Set([...options.insideType, typeA, typeB]);
+					options.insideType = new Set([...options.insideType, typeA, typeB])
 
 					// Check how many properties typeB has in common with typeA.
-					let membersInCommon = 0;
+					let membersInCommon = 0
 
 					// Make sure that every required prop in typeA is present in typeB
 					const requiredMembersInTypeAExistsInTypeB = and(membersA, memberA => {
 						//if (memberA.optional) return true;
-						const memberB = membersB.find(memberB => memberA.name === memberB.name);
-						if (memberB != null) membersInCommon += 1;
-						return memberB == null
+						const memberB = membersB.find(memberB => memberA.name === memberB.name)
+						if (memberB !== undefined) {
+							membersInCommon += 1
+						}
+						return memberB === undefined
 							? // If corresponding "memberB" couldn't be found, return true if "memberA" is optional
 							  Boolean(memberA.optional)
 							: // If corresponding "memberB" was found, return true if "memberA" is optional or "memberB" is not optional
-							  Boolean(memberA.optional || !memberB.optional);
-					});
+							  Boolean(memberA.optional || !memberB.optional)
+					})
 
 					if (!requiredMembersInTypeAExistsInTypeB) {
 						if (options.config.debug) {
-							logDebug(options, "object-type", `Didn't find required members from typeA in typeB`);
+							logDebug(options, "object-type", `Didn't find required members from typeA in typeB`)
 						}
-						return false;
+						return false
 					}
 
 					// Check if construct signatures are assignable (if any)
-					if (typeA.ctor != null && typeA.kind !== "CLASS") {
+					if (typeA.ctor !== undefined && typeA.kind !== "CLASS") {
 						if (options.config.debug) {
-							logDebug(options, "object-type", `Checking if typeB.ctor is assignable to typeA.ctor`);
+							logDebug(options, "object-type", `Checking if typeB.ctor is assignable to typeA.ctor`)
 						}
 
-						if (typeB.ctor != null && typeB.kind !== "CLASS") {
+						if (typeB.ctor !== undefined && typeB.kind !== "CLASS") {
 							if (!isAssignableToSimpleTypeCached(typeA.ctor, typeB.ctor, options)) {
-								return false;
+								return false
 							}
 
-							membersInCommon += 1;
+							membersInCommon += 1
 						} else {
 							if (options.config.debug) {
-								logDebug(options, "object-type", `Expected typeB.ctor to have a ctor`);
+								logDebug(options, "object-type", `Expected typeB.ctor to have a ctor`)
 							}
-							return false;
+							return false
 						}
 					}
 
 					// Check if call signatures are assignable (if any)
-					if (typeA.call != null) {
+					if (typeA.call !== undefined) {
 						if (options.config.debug) {
-							logDebug(options, "object-type", `Checking if typeB.call is assignable to typeA.call`);
+							logDebug(options, "object-type", `Checking if typeB.call is assignable to typeA.call`)
 						}
 
-						if (typeB.call != null) {
+						if (typeB.call !== undefined) {
 							if (!isAssignableToSimpleTypeCached(typeA.call, typeB.call, options)) {
-								return false;
+								return false
 							}
 
-							membersInCommon += 1;
+							membersInCommon += 1
 						} else {
-							return false;
+							return false
 						}
 					}
 
 					// They are not assignable if typeB has 0 members in common with typeA, and there are more than 0 members in typeB.
 					// The ctor of classes are not counted towards if typeB is empty
-					const typeBIsEmpty = membersB.length === 0 && typeB.call == null && ((typeB.kind !== "CLASS" && typeB.ctor == null) || typeB.kind === "CLASS");
-					if (membersInCommon === 0 && !typeBIsEmpty) {
+					const typeBIsEmpty = membersB.length === 0 && typeB.call === undefined && ((typeB.kind !== "CLASS" && typeB.ctor === undefined) || typeB.kind === "CLASS")
+					if (membersInCommon === 0 && !typeBIsEmpty && !(options.disableOverlapCheck === typeA) && !(options.disableOverlapCheck === typeB)) {
 						if (options.config.debug) {
-							logDebug(options, "object-type", `typeB has 0 members in common with typeA and there are more than 0 members in typeB`);
+							logDebug(options, "object-type", `typeB has 0 members in common with typeA and there are more than 0 members in typeB`)
 						}
 
-						return false;
+						return false
 					}
 
 					// Ensure that every member in typeB is assignable to corresponding members in typeA
 					const membersInTypeBAreAssignableToMembersInTypeA = and(membersB, memberB => {
-						const memberA = membersA.find(memberA => memberA.name === memberB.name);
-						if (memberA == null) {
-							return true;
+						const memberA = membersA.find(memberA => memberA.name === memberB.name)
+						if (memberA === undefined) {
+							return true
 						}
 						if (options.config.debug) {
-							logDebug(options, "object-type", `Checking member '${memberA.name}' types`);
+							logDebug(options, "object-type", `Checking member '${memberA.name}' types`)
 						}
-						return isAssignableToSimpleTypeCached(memberA.type, memberB.type, options);
-					});
+						return isAssignableToSimpleTypeCached(memberA.type, memberB.type, options)
+					})
 
 					if (options.config.debug) {
 						if (!membersInTypeBAreAssignableToMembersInTypeA) {
-							logDebug(options, "object-type", `Not all members in typeB is assignable to corresponding members in typeA`);
+							logDebug(options, "object-type", `Not all members in typeB is assignable to corresponding members in typeA`)
 						} else {
-							logDebug(options, "object-type", `All members were checked successfully`);
+							logDebug(options, "object-type", `All members were checked successfully`)
 						}
 					}
 
-					return membersInTypeBAreAssignableToMembersInTypeA;
+					return membersInTypeBAreAssignableToMembersInTypeA
 				}
+
+				// Evaluate methods and properties of primitives against the interface.
+				case "STRING":
+				case "STRING_LITERAL":
+					return isAssignableToSimpleTypeCached(typeA, getStringInterfaceSimpleType(), options)
+
+				case "NUMBER":
+				case "NUMBER_LITERAL":
+					return isAssignableToSimpleTypeCached(typeA, getNumberInterfaceSimpleType(), options)
+
+				case "ES_SYMBOL":
+				case "ES_SYMBOL_UNIQUE":
+					return isAssignableToSimpleTypeCached(typeA, getSymbolInterfaceSimpleType(), options)
+
+				case "BIG_INT":
+				case "BIG_INT_LITERAL":
+					return isAssignableToSimpleTypeCached(typeA, getBigintInterfaceSimpleType(), options)
+
 				default:
-					return false;
+					if (options.config.debug) {
+						logDebug(options, "object-type", `No comparison for typeB kind: ${typeB.kind}`)
+					}
+					return false
 			}
 		}
 
 		// [typeA] (compare)
 		case "TUPLE": {
-			if (typeB.kind !== "TUPLE") return false;
+			if (typeB.kind !== "TUPLE") {
+				return false
+			}
 
 			// Compare the length of each tuple, but compare the length type instead of the actual length
 			// We compare the length type because Typescript compares the type of the "length" member of tuples
 			if (!isAssignableToSimpleTypeCached(getTupleLengthType(typeA), getTupleLengthType(typeB), options)) {
-				return false;
+				return false
 			}
 
 			// Compare if typeB elements are assignable to typeA's rest element
 			// Example: [string, ...boolean[]] === [any, true, 123]
 			if (typeA.rest && typeB.members.length > typeA.members.length) {
 				return and(typeB.members.slice(typeA.members.length), memberB => {
-					return isAssignableToSimpleTypeCached(typeA.members[typeA.members.length - 1].type, memberB.type, options);
-				});
+					return isAssignableToSimpleTypeCached(typeA.members[typeA.members.length - 1].type, memberB.type, options)
+				})
 			}
 
 			// Compare that every type of typeB is assignable to corresponding members in typeA
 			return and(typeA.members, (memberA, i) => {
-				const memberB = typeB.members[i];
-				if (memberB == null) return Boolean(memberA.optional);
-				return isAssignableToSimpleTypeCached(memberA.type, memberB.type, options);
-			});
+				const memberB = typeB.members[i]
+				if (memberB === undefined) {
+					return Boolean(memberA.optional)
+				}
+				return isAssignableToSimpleTypeCached(memberA.type, memberB.type, options)
+			})
 		}
 
 		// [typeA] (compare)
 		case "PROMISE": {
-			return typeB.kind === "PROMISE" && isAssignableToSimpleTypeCached(typeA.type, typeB.type, options);
+			return typeB.kind === "PROMISE" && isAssignableToSimpleTypeCached(typeA.type, typeB.type, options)
 		}
 
 		// [typeA] (compare)
 		case "DATE": {
-			return typeB.kind === "DATE";
+			return typeB.kind === "DATE"
 		}
 	}
 
 	// If we some how end up here (we shouldn't), return "true" as a safe fallback
 	// @ts-ignore
-	return true;
+	return true
 }
 
 function reduceIntersectionIfPossible(simpleType: SimpleTypeIntersection, parameterMap: Map<string, SimpleType>): SimpleType {
@@ -963,146 +1011,146 @@ function reduceIntersectionIfPossible(simpleType: SimpleTypeIntersection, parame
 	// a symbol-like type and a type known to be non-symbol-like, or
 	// a void-like type and a type known to be non-void-like, or
 	// a non-primitive type and a type known to be primitive.
-	const typeKindMap = new Map<SimpleTypeKind, SimpleType[]>();
-	const primitiveSet = new Set<SimpleTypeKind>();
-	const primitiveLiteralSet = new Map<SimpleTypeKind, unknown>();
+	const typeKindMap = new Map<SimpleTypeKind, SimpleType[]>()
+	const primitiveSet = new Set<SimpleTypeKind>()
+	const primitiveLiteralSet = new Map<SimpleTypeKind, unknown>()
 
 	for (const member of simpleType.types) {
-		const resolvedType = resolveType(member, parameterMap);
-		typeKindMap.set(resolvedType.kind, [...(typeKindMap.get(resolvedType.kind) || []), resolvedType]);
+		const resolvedType = resolveType(member, parameterMap)
+		typeKindMap.set(resolvedType.kind, [...(typeKindMap.get(resolvedType.kind) || []), resolvedType])
 
 		switch (resolvedType.kind) {
 			case "NEVER":
-				return NEVER_TYPE;
+				return NEVER_TYPE
 		}
 
 		if (isSimpleTypePrimitive(resolvedType)) {
 			if (isSimpleTypeLiteral(resolvedType)) {
 				if (primitiveLiteralSet.has(resolvedType.kind) && primitiveLiteralSet.get(resolvedType.kind) !== resolvedType.value) {
-					return NEVER_TYPE;
+					return NEVER_TYPE
 				}
 
-				primitiveLiteralSet.set(resolvedType.kind, resolvedType.value);
+				primitiveLiteralSet.set(resolvedType.kind, resolvedType.value)
 			} else {
-				primitiveSet.add(resolvedType.kind);
+				primitiveSet.add(resolvedType.kind)
 
 				if (primitiveSet.size > 1) {
-					return NEVER_TYPE;
+					return NEVER_TYPE
 				}
 			}
 		}
 	}
 
 	if ((typeKindMap.get("TUPLE")?.length || 0) > 1) {
-		let len: number | undefined = undefined;
+		let len: number | undefined = undefined
 		for (const type of typeKindMap.get("TUPLE") as SimpleTypeTuple[]) {
-			if (len != null && len !== type.members.length) {
-				return NEVER_TYPE;
+			if (len !== undefined && len !== type.members.length) {
+				return NEVER_TYPE
 			}
 
-			len = type.members.length;
+			len = type.members.length
 		}
 	}
 
 	if (typeKindMap.size === 1 && (typeKindMap.get("OBJECT")?.length || 0) > 1) {
-		const members = new Map<string, SimpleTypeMemberNamed>();
+		const members = new Map<string, SimpleTypeMemberNamed>()
 		for (const type of typeKindMap.get("OBJECT") as SimpleTypeObject[]) {
 			for (const member of type.members || []) {
 				if (members.has(member.name)) {
-					const combinedMemberType = reduceIntersectionIfPossible({ kind: "INTERSECTION", types: [members.get(member.name)!.type, member.type] }, parameterMap);
+					const combinedMemberType = reduceIntersectionIfPossible({ kind: "INTERSECTION", types: [members.get(member.name)!.type, member.type] }, parameterMap)
 					if (combinedMemberType.kind === "NEVER") {
-						return combinedMemberType;
+						return combinedMemberType
 					}
 
-					members.set(member.name, { ...member, type: combinedMemberType });
+					members.set(member.name, { ...member, type: combinedMemberType })
 				} else {
-					members.set(member.name, member);
+					members.set(member.name, member)
 				}
 			}
 		}
 
-		return { ...(typeKindMap.get("OBJECT")![0] as SimpleTypeObject), members: Array.from(members.values()) };
+		return { ...(typeKindMap.get("OBJECT")![0] as SimpleTypeObject), members: Array.from(members.values()) }
 	}
 
-	return simpleType;
+	return simpleType
 }
 
 function isObjectEmpty(simpleType: SimpleTypeObjectTypeBase, { ignoreOptionalMembers }: { ignoreOptionalMembers?: boolean }): boolean {
-	return simpleType.members == null || simpleType.members.length === 0 || (ignoreOptionalMembers && !simpleType.members.some(m => !m.optional)) || false;
+	return simpleType.members === undefined || simpleType.members.length === 0 || (ignoreOptionalMembers && !simpleType.members.some(m => !m.optional)) || false
 }
 
 export function resolveType(simpleType: SimpleType, parameterMap: Map<string, SimpleType>): Exclude<SimpleType, SimpleTypeGenericParameter | SimpleTypeGenericArguments> {
-	return resolveTypeUnsafe(simpleType, parameterMap);
+	return resolveTypeUnsafe(simpleType, parameterMap)
 }
 
 function logDebugHeader(typeA: SimpleType, typeB: SimpleType, options: IsAssignableToSimpleTypeInternalOptions): void {
-	const silentConfig = { ...options.config, debug: false, maxOps: 20, maxDepth: 20 };
-	let result: boolean | string;
+	const silentConfig = { ...options.config, debug: false, maxOps: 20, maxDepth: 20 }
+	let result: boolean | string
 	try {
-		result = isAssignableToSimpleType(typeA, typeB, silentConfig);
+		result = isAssignableToSimpleType(typeA, typeB, silentConfig)
 	} catch (e) {
-		result = (e as Error).message;
+		result = (e as Error).message
 	}
-	const depthChars = "   ".repeat(options.depth);
+	const depthChars = "   ".repeat(options.depth)
 
-	const firstLogPart = ` ${depthChars}${simpleTypeToStringLazy(typeA)} ${colorText(options, ">:", "cyan")} ${simpleTypeToStringLazy(typeB)}   [${typeA.kind} === ${typeB.kind}]`;
+	const firstLogPart = ` ${depthChars}${simpleTypeToStringLazy(typeA)} ${colorText(options, ">:", "cyan")} ${simpleTypeToStringLazy(typeB)}   [${typeA.kind} === ${typeB.kind}]`
 	let text = `${firstLogPart} ${" ".repeat(Math.max(2, 120 - firstLogPart.length))}${colorText(options, options.depth, "yellow")} ### (${typeA.name || "???"} === ${
 		typeB.name || "???"
-	}) [result=${colorText(options, result, result === true ? "green" : "red")}]`;
+	}) [result=${colorText(options, result, result === true ? "green" : "red")}] disableOverlap=(${options.disableOverlapCheck?.kind}/${options.disableOverlapCheck?.name})`
 
 	if (options.depth >= 50) {
 		// Too deep
 		if (options.depth === 50) {
-			text = `Nested comparisons reach 100. Skipping logging...`;
+			text = `Nested comparisons reach 100. Skipping logging...`
 		} else {
-			return;
+			return
 		}
 	}
 
 	// eslint-disable-next-line no-console
-	(options.config.debugLog || console.log)(text);
+	;(options.config.debugLog || console.log)(text)
 }
 
 function logDebug(options: IsAssignableToSimpleTypeInternalOptions, title: string, ...args: unknown[]): void {
-	const depthChars = "   ".repeat(options.depth);
+	const depthChars = "   ".repeat(options.depth)
 
-	const text = `${depthChars} [${colorText(options, title, "blue")}] ${args.join(" ")}`;
+	const text = `${depthChars} [${colorText(options, title, "blue")}] ${args.join(" ")}`
 
 	// eslint-disable-next-line no-console
-	(options.config.debugLog || console.log)(colorText(options, text, "gray"));
+	;(options.config.debugLog || console.log)(colorText(options, text, "gray"))
 }
 
 function simpleTypeToStringLazy(simpleType: SimpleType | undefined): string {
-	if (simpleType == null) {
-		return "???";
+	if (simpleType === undefined) {
+		return "???"
 	}
-	return simpleTypeToString(simpleType);
+	return simpleTypeToString(simpleType)
 }
 
 function colorText(options: IsAssignableToSimpleTypeInternalOptions, text: unknown, color: "cyan" | "gray" | "red" | "blue" | "green" | "yellow"): string {
-	if (options.config.debugLog != null) {
-		return `${text}`;
+	if (options.config.debugLog !== undefined) {
+		return `${text}`
 	}
 
-	const RESET = "\x1b[0m";
+	const RESET = "\x1b[0m"
 	const COLOR = (() => {
 		switch (color) {
 			case "gray":
-				return "\x1b[2m\x1b[37m";
+				return "\x1b[2m\x1b[37m"
 			case "red":
-				return "\x1b[31m";
+				return "\x1b[31m"
 			case "green":
-				return "\x1b[32m";
+				return "\x1b[32m"
 			case "yellow":
-				return "\x1b[33m";
+				return "\x1b[33m"
 			case "blue":
-				return "\x1b[34m";
+				return "\x1b[34m"
 			case "cyan":
-				return "\x1b[2m\x1b[36m";
+				return "\x1b[2m\x1b[36m"
 		}
-	})();
+	})()
 
-	return `${COLOR}${text}${RESET}`;
+	return `${COLOR}${text}${RESET}`
 }
 
 const PRIMITIVE_TYPE_TO_LITERAL_MAP = {
@@ -1110,8 +1158,8 @@ const PRIMITIVE_TYPE_TO_LITERAL_MAP = {
 	["NUMBER"]: "NUMBER_LITERAL",
 	["BOOLEAN"]: "BOOLEAN_LITERAL",
 	["BIG_INT"]: "BIG_INT_LITERAL",
-	["ES_SYMBOL"]: "ES_SYMBOL_UNIQUE"
-} as unknown as Record<SimpleTypeKind, SimpleTypeKind | undefined>;
+	["ES_SYMBOL"]: "ES_SYMBOL_UNIQUE",
+} as unknown as Record<SimpleTypeKind, SimpleTypeKind | undefined>
 
 /*const LITERAL_TYPE_TO_PRIMITIVE_TYPE_MAP = ({
 	["STRING_LITERAL"]: "STRING",

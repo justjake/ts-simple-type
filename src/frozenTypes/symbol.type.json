@@ -1,0 +1,69 @@
+{
+	"type": 0,
+	"typeMap": {
+		"0": {
+			"kind": "INTERFACE",
+			"name": "symbol",
+			"members": [
+				{
+					"name": "toString",
+					"type": "__REF__1"
+				},
+				{
+					"name": "valueOf",
+					"type": "__REF__3"
+				},
+				{
+					"name": "description",
+					"type": "__REF__5",
+					"modifiers": ["READONLY"]
+				},
+				{
+					"name": "__@toPrimitive@28",
+					"type": "__REF__7"
+				},
+				{
+					"name": "__@toStringTag@30",
+					"type": "__REF__2",
+					"modifiers": ["READONLY"]
+				}
+			]
+		},
+		"1": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"2": {
+			"kind": "STRING"
+		},
+		"3": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": []
+		},
+		"4": {
+			"kind": "ES_SYMBOL"
+		},
+		"5": {
+			"kind": "UNION",
+			"types": ["__REF__2", "__REF__6"]
+		},
+		"6": {
+			"kind": "UNDEFINED"
+		},
+		"7": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "hint",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		}
+	}
+}

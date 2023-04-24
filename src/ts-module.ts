@@ -1,11 +1,11 @@
-import * as tsModule from "typescript";
+import * as tsModule from "typescript"
 
-let selectedTSModule = tsModule;
+let selectedTSModule = tsModule
 
 export function setTypescriptModule(ts: typeof tsModule) {
-	selectedTSModule = ts;
+	selectedTSModule = ts
 }
 
 export function getTypescriptModule(): typeof tsModule {
-	return selectedTSModule;
+	return selectedTSModule
 }

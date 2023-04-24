@@ -1,0 +1,324 @@
+{
+	"type": 0,
+	"typeMap": {
+		"0": {
+			"kind": "INTERFACE",
+			"name": "bigint",
+			"members": [
+				{
+					"name": "toString",
+					"type": "__REF__1"
+				},
+				{
+					"name": "toLocaleString",
+					"type": "__REF__6"
+				},
+				{
+					"name": "valueOf",
+					"type": "__REF__36"
+				},
+				{
+					"name": "__@toStringTag@30",
+					"type": "__REF__38",
+					"modifiers": ["READONLY"]
+				}
+			]
+		},
+		"1": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "radix",
+					"optional": true,
+					"type": "__REF__3",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"2": {
+			"kind": "STRING"
+		},
+		"3": {
+			"kind": "UNION",
+			"types": ["__REF__4", "__REF__5"]
+		},
+		"4": {
+			"kind": "NUMBER"
+		},
+		"5": {
+			"kind": "UNDEFINED"
+		},
+		"6": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "locales",
+					"optional": true,
+					"type": "__REF__7",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "options",
+					"optional": true,
+					"type": "__REF__8",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"7": {
+			"kind": "UNION",
+			"types": ["__REF__2", "__REF__5"]
+		},
+		"8": {
+			"kind": "UNION",
+			"types": ["__REF__9", "__REF__5"]
+		},
+		"9": {
+			"kind": "INTERFACE",
+			"name": "BigIntToLocaleStringOptions",
+			"members": [
+				{
+					"name": "localeMatcher",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "style",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "numberingSystem",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "unit",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "unitDisplay",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "currency",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "currencyDisplay",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "useGrouping",
+					"type": "__REF__10",
+					"optional": true
+				},
+				{
+					"name": "minimumIntegerDigits",
+					"type": "__REF__12",
+					"optional": true
+				},
+				{
+					"name": "minimumFractionDigits",
+					"type": "__REF__34",
+					"optional": true
+				},
+				{
+					"name": "maximumFractionDigits",
+					"type": "__REF__34",
+					"optional": true
+				},
+				{
+					"name": "minimumSignificantDigits",
+					"type": "__REF__12",
+					"optional": true
+				},
+				{
+					"name": "maximumSignificantDigits",
+					"type": "__REF__12",
+					"optional": true
+				},
+				{
+					"name": "notation",
+					"type": "__REF__7",
+					"optional": true
+				},
+				{
+					"name": "compactDisplay",
+					"type": "__REF__7",
+					"optional": true
+				}
+			]
+		},
+		"10": {
+			"kind": "UNION",
+			"types": ["__REF__11", "__REF__5"]
+		},
+		"11": {
+			"kind": "BOOLEAN"
+		},
+		"12": {
+			"kind": "UNION",
+			"types": [
+				"__REF__13",
+				"__REF__14",
+				"__REF__15",
+				"__REF__16",
+				"__REF__17",
+				"__REF__18",
+				"__REF__19",
+				"__REF__20",
+				"__REF__21",
+				"__REF__22",
+				"__REF__23",
+				"__REF__24",
+				"__REF__25",
+				"__REF__26",
+				"__REF__27",
+				"__REF__28",
+				"__REF__29",
+				"__REF__30",
+				"__REF__31",
+				"__REF__32",
+				"__REF__33",
+				"__REF__5"
+			]
+		},
+		"13": {
+			"kind": "NUMBER_LITERAL",
+			"value": 2
+		},
+		"14": {
+			"kind": "NUMBER_LITERAL",
+			"value": 1
+		},
+		"15": {
+			"kind": "NUMBER_LITERAL",
+			"value": 3
+		},
+		"16": {
+			"kind": "NUMBER_LITERAL",
+			"value": 4
+		},
+		"17": {
+			"kind": "NUMBER_LITERAL",
+			"value": 5
+		},
+		"18": {
+			"kind": "NUMBER_LITERAL",
+			"value": 6
+		},
+		"19": {
+			"kind": "NUMBER_LITERAL",
+			"value": 7
+		},
+		"20": {
+			"kind": "NUMBER_LITERAL",
+			"value": 8
+		},
+		"21": {
+			"kind": "NUMBER_LITERAL",
+			"value": 9
+		},
+		"22": {
+			"kind": "NUMBER_LITERAL",
+			"value": 10
+		},
+		"23": {
+			"kind": "NUMBER_LITERAL",
+			"value": 11
+		},
+		"24": {
+			"kind": "NUMBER_LITERAL",
+			"value": 12
+		},
+		"25": {
+			"kind": "NUMBER_LITERAL",
+			"value": 13
+		},
+		"26": {
+			"kind": "NUMBER_LITERAL",
+			"value": 14
+		},
+		"27": {
+			"kind": "NUMBER_LITERAL",
+			"value": 15
+		},
+		"28": {
+			"kind": "NUMBER_LITERAL",
+			"value": 16
+		},
+		"29": {
+			"kind": "NUMBER_LITERAL",
+			"value": 17
+		},
+		"30": {
+			"kind": "NUMBER_LITERAL",
+			"value": 18
+		},
+		"31": {
+			"kind": "NUMBER_LITERAL",
+			"value": 19
+		},
+		"32": {
+			"kind": "NUMBER_LITERAL",
+			"value": 20
+		},
+		"33": {
+			"kind": "NUMBER_LITERAL",
+			"value": 21
+		},
+		"34": {
+			"kind": "UNION",
+			"types": [
+				"__REF__35",
+				"__REF__13",
+				"__REF__14",
+				"__REF__15",
+				"__REF__16",
+				"__REF__17",
+				"__REF__18",
+				"__REF__19",
+				"__REF__20",
+				"__REF__21",
+				"__REF__22",
+				"__REF__23",
+				"__REF__24",
+				"__REF__25",
+				"__REF__26",
+				"__REF__27",
+				"__REF__28",
+				"__REF__29",
+				"__REF__30",
+				"__REF__31",
+				"__REF__32",
+				"__REF__5"
+			]
+		},
+		"35": {
+			"kind": "NUMBER_LITERAL",
+			"value": 0
+		},
+		"36": {
+			"kind": "METHOD",
+			"returnType": "__REF__37",
+			"parameters": []
+		},
+		"37": {
+			"kind": "BIG_INT"
+		},
+		"38": {
+			"kind": "STRING_LITERAL",
+			"value": "BigInt"
+		}
+	}
+}

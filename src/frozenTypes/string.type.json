@@ -1,0 +1,3085 @@
+{
+	"type": 0,
+	"typeMap": {
+		"0": {
+			"kind": "INTERFACE",
+			"name": "string",
+			"members": [
+				{
+					"name": "toString",
+					"type": "__REF__1"
+				},
+				{
+					"name": "charAt",
+					"type": "__REF__3"
+				},
+				{
+					"name": "charCodeAt",
+					"type": "__REF__5"
+				},
+				{
+					"name": "concat",
+					"type": "__REF__6"
+				},
+				{
+					"name": "indexOf",
+					"type": "__REF__8"
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "__REF__11"
+				},
+				{
+					"name": "localeCompare",
+					"type": "__REF__12"
+				},
+				{
+					"name": "match",
+					"type": "__REF__19"
+				},
+				{
+					"name": "replace",
+					"type": "__REF__190"
+				},
+				{
+					"name": "search",
+					"type": "__REF__197"
+				},
+				{
+					"name": "slice",
+					"type": "__REF__200"
+				},
+				{
+					"name": "split",
+					"type": "__REF__201"
+				},
+				{
+					"name": "substring",
+					"type": "__REF__204"
+				},
+				{
+					"name": "toLowerCase",
+					"type": "__REF__205"
+				},
+				{
+					"name": "toLocaleLowerCase",
+					"type": "__REF__206"
+				},
+				{
+					"name": "toUpperCase",
+					"type": "__REF__207"
+				},
+				{
+					"name": "toLocaleUpperCase",
+					"type": "__REF__208"
+				},
+				{
+					"name": "trim",
+					"type": "__REF__209"
+				},
+				{
+					"name": "length",
+					"type": "__REF__4",
+					"modifiers": ["READONLY"]
+				},
+				{
+					"name": "substr",
+					"type": "__REF__210"
+				},
+				{
+					"name": "valueOf",
+					"type": "__REF__211"
+				},
+				{
+					"name": "codePointAt",
+					"type": "__REF__212"
+				},
+				{
+					"name": "includes",
+					"type": "__REF__213"
+				},
+				{
+					"name": "endsWith",
+					"type": "__REF__214"
+				},
+				{
+					"name": "normalize",
+					"type": "__REF__215"
+				},
+				{
+					"name": "repeat",
+					"type": "__REF__216"
+				},
+				{
+					"name": "startsWith",
+					"type": "__REF__217"
+				},
+				{
+					"name": "anchor",
+					"type": "__REF__218"
+				},
+				{
+					"name": "big",
+					"type": "__REF__219"
+				},
+				{
+					"name": "blink",
+					"type": "__REF__220"
+				},
+				{
+					"name": "bold",
+					"type": "__REF__221"
+				},
+				{
+					"name": "fixed",
+					"type": "__REF__222"
+				},
+				{
+					"name": "fontcolor",
+					"type": "__REF__223"
+				},
+				{
+					"name": "fontsize",
+					"type": "__REF__224"
+				},
+				{
+					"name": "italics",
+					"type": "__REF__225"
+				},
+				{
+					"name": "link",
+					"type": "__REF__226"
+				},
+				{
+					"name": "small",
+					"type": "__REF__227"
+				},
+				{
+					"name": "strike",
+					"type": "__REF__228"
+				},
+				{
+					"name": "sub",
+					"type": "__REF__229"
+				},
+				{
+					"name": "sup",
+					"type": "__REF__230"
+				},
+				{
+					"name": "padStart",
+					"type": "__REF__231"
+				},
+				{
+					"name": "padEnd",
+					"type": "__REF__232"
+				},
+				{
+					"name": "trimEnd",
+					"type": "__REF__233"
+				},
+				{
+					"name": "trimStart",
+					"type": "__REF__234"
+				},
+				{
+					"name": "trimLeft",
+					"type": "__REF__235"
+				},
+				{
+					"name": "trimRight",
+					"type": "__REF__236"
+				},
+				{
+					"name": "matchAll",
+					"type": "__REF__237"
+				},
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__245"
+				},
+				{
+					"name": "at",
+					"type": "__REF__184"
+				}
+			],
+			"indexType": {
+				"NUMBER": "__REF__2"
+			}
+		},
+		"1": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"2": {
+			"kind": "STRING"
+		},
+		"3": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "pos",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"4": {
+			"kind": "NUMBER"
+		},
+		"5": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"6": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "strings",
+					"optional": false,
+					"type": "__REF__7",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"7": {
+			"kind": "ARRAY",
+			"type": "__REF__2",
+			"name": "Array"
+		},
+		"8": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "searchString",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "position",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"9": {
+			"kind": "UNION",
+			"types": ["__REF__4", "__REF__10"]
+		},
+		"10": {
+			"kind": "UNDEFINED"
+		},
+		"11": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "searchString",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "position",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"12": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "that",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "locales",
+					"optional": true,
+					"type": "__REF__13",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "options",
+					"optional": true,
+					"type": "__REF__14",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"13": {
+			"kind": "UNION",
+			"types": ["__REF__2", "__REF__7", "__REF__10"]
+		},
+		"14": {
+			"kind": "UNION",
+			"types": ["__REF__15", "__REF__10"]
+		},
+		"15": {
+			"kind": "INTERFACE",
+			"name": "CollatorOptions",
+			"members": [
+				{
+					"name": "usage",
+					"type": "__REF__16",
+					"optional": true
+				},
+				{
+					"name": "localeMatcher",
+					"type": "__REF__16",
+					"optional": true
+				},
+				{
+					"name": "numeric",
+					"type": "__REF__17",
+					"optional": true
+				},
+				{
+					"name": "caseFirst",
+					"type": "__REF__16",
+					"optional": true
+				},
+				{
+					"name": "sensitivity",
+					"type": "__REF__16",
+					"optional": true
+				},
+				{
+					"name": "ignorePunctuation",
+					"type": "__REF__17",
+					"optional": true
+				}
+			]
+		},
+		"16": {
+			"kind": "UNION",
+			"types": ["__REF__2", "__REF__10"]
+		},
+		"17": {
+			"kind": "UNION",
+			"types": ["__REF__18", "__REF__10"]
+		},
+		"18": {
+			"kind": "BOOLEAN"
+		},
+		"19": {
+			"kind": "METHOD",
+			"returnType": "__REF__20",
+			"parameters": [
+				{
+					"name": "matcher",
+					"optional": false,
+					"type": "__REF__188",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"20": {
+			"kind": "UNION",
+			"types": ["__REF__21", "__REF__187"]
+		},
+		"21": {
+			"kind": "INTERFACE",
+			"name": "RegExpMatchArray",
+			"members": [
+				{
+					"name": "index",
+					"type": "__REF__9",
+					"optional": true
+				},
+				{
+					"name": "input",
+					"type": "__REF__16",
+					"optional": true
+				},
+				{
+					"name": "groups",
+					"type": "__REF__22",
+					"optional": true
+				},
+				{
+					"name": "length",
+					"type": "__REF__4"
+				},
+				{
+					"name": "toString",
+					"type": "__REF__24"
+				},
+				{
+					"name": "toLocaleString",
+					"type": "__REF__25"
+				},
+				{
+					"name": "pop",
+					"type": "__REF__26"
+				},
+				{
+					"name": "push",
+					"type": "__REF__29"
+				},
+				{
+					"name": "concat",
+					"type": "__REF__31"
+				},
+				{
+					"name": "join",
+					"type": "__REF__35"
+				},
+				{
+					"name": "reverse",
+					"type": "__REF__36"
+				},
+				{
+					"name": "shift",
+					"type": "__REF__37"
+				},
+				{
+					"name": "slice",
+					"type": "__REF__38"
+				},
+				{
+					"name": "sort",
+					"type": "__REF__39"
+				},
+				{
+					"name": "splice",
+					"type": "__REF__59"
+				},
+				{
+					"name": "unshift",
+					"type": "__REF__60"
+				},
+				{
+					"name": "indexOf",
+					"type": "__REF__61"
+				},
+				{
+					"name": "lastIndexOf",
+					"type": "__REF__62"
+				},
+				{
+					"name": "every",
+					"type": "__REF__63"
+				},
+				{
+					"name": "some",
+					"type": "__REF__69"
+				},
+				{
+					"name": "forEach",
+					"type": "__REF__73"
+				},
+				{
+					"name": "map",
+					"type": "__REF__77"
+				},
+				{
+					"name": "filter",
+					"type": "__REF__82"
+				},
+				{
+					"name": "reduce",
+					"type": "__REF__85"
+				},
+				{
+					"name": "reduceRight",
+					"type": "__REF__89"
+				},
+				{
+					"name": "find",
+					"type": "__REF__93"
+				},
+				{
+					"name": "findIndex",
+					"type": "__REF__96"
+				},
+				{
+					"name": "fill",
+					"type": "__REF__99"
+				},
+				{
+					"name": "copyWithin",
+					"type": "__REF__100"
+				},
+				{
+					"name": "entries",
+					"type": "__REF__101"
+				},
+				{
+					"name": "keys",
+					"type": "__REF__144"
+				},
+				{
+					"name": "values",
+					"type": "__REF__153"
+				},
+				{
+					"name": "includes",
+					"type": "__REF__162"
+				},
+				{
+					"name": "flatMap",
+					"type": "__REF__163"
+				},
+				{
+					"name": "flat",
+					"type": "__REF__172"
+				},
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__181"
+				},
+				{
+					"name": "__@unscopables@84",
+					"type": "__REF__182"
+				},
+				{
+					"name": "at",
+					"type": "__REF__184"
+				}
+			],
+			"indexType": {
+				"NUMBER": "__REF__2"
+			}
+		},
+		"22": {
+			"kind": "UNION",
+			"types": ["__REF__23", "__REF__10"]
+		},
+		"23": {
+			"kind": "OBJECT",
+			"members": [],
+			"indexType": {
+				"STRING": "__REF__2"
+			}
+		},
+		"24": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"25": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"26": {
+			"kind": "METHOD",
+			"returnType": "__REF__27",
+			"parameters": []
+		},
+		"27": {
+			"kind": "UNION",
+			"types": ["__REF__28", "__REF__10"]
+		},
+		"28": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"29": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"30": {
+			"kind": "ARRAY",
+			"type": "__REF__28",
+			"name": "Array"
+		},
+		"31": {
+			"kind": "METHOD",
+			"returnType": "__REF__30",
+			"parameters": [
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__32",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"32": {
+			"kind": "ARRAY",
+			"type": "__REF__33",
+			"name": "Array"
+		},
+		"33": {
+			"kind": "UNION",
+			"types": ["__REF__28", "__REF__34"]
+		},
+		"34": {
+			"kind": "ARRAY",
+			"type": "__REF__28",
+			"name": "ConcatArray"
+		},
+		"35": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "separator",
+					"optional": true,
+					"type": "__REF__16",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"36": {
+			"kind": "METHOD",
+			"returnType": "__REF__30",
+			"parameters": []
+		},
+		"37": {
+			"kind": "METHOD",
+			"returnType": "__REF__27",
+			"parameters": []
+		},
+		"38": {
+			"kind": "METHOD",
+			"returnType": "__REF__30",
+			"parameters": [
+				{
+					"name": "start",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "end",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"39": {
+			"kind": "METHOD",
+			"returnType": "__REF__40",
+			"parameters": [
+				{
+					"name": "compareFn",
+					"optional": true,
+					"type": "__REF__56",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"40": {
+			"kind": "INTERFACE",
+			"name": "ArrayConstructor",
+			"ctor": "__REF__41",
+			"members": [
+				{
+					"name": "isArray",
+					"type": "__REF__44"
+				},
+				{
+					"name": "prototype",
+					"type": "__REF__47",
+					"modifiers": ["READONLY"]
+				},
+				{
+					"name": "from",
+					"type": "__REF__48"
+				},
+				{
+					"name": "of",
+					"type": "__REF__50"
+				},
+				{
+					"name": "__@species@298",
+					"type": "__REF__52",
+					"modifiers": ["READONLY"]
+				}
+			],
+			"call": "__REF__53"
+		},
+		"41": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__42",
+			"parameters": [
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__42",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"42": {
+			"kind": "ARRAY",
+			"type": "__REF__43",
+			"name": "Array"
+		},
+		"43": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"44": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "arg",
+					"optional": false,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typePredicate": {
+				"parameterName": "arg",
+				"parameterIndex": 0,
+				"type": "__REF__47"
+			}
+		},
+		"45": {
+			"kind": "BOOLEAN"
+		},
+		"46": {
+			"kind": "ANY"
+		},
+		"47": {
+			"kind": "ARRAY",
+			"type": "__REF__46",
+			"name": "Array"
+		},
+		"48": {
+			"kind": "ARRAY",
+			"type": "__REF__49",
+			"name": "Array"
+		},
+		"49": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "U"
+		},
+		"50": {
+			"kind": "ARRAY",
+			"type": "__REF__51",
+			"name": "Array"
+		},
+		"51": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"52": {
+			"kind": "INTERFACE",
+			"name": "ArrayConstructor",
+			"ctor": "__REF__41",
+			"members": [
+				{
+					"name": "isArray",
+					"type": "__REF__44"
+				},
+				{
+					"name": "prototype",
+					"type": "__REF__47",
+					"modifiers": ["READONLY"]
+				},
+				{
+					"name": "from",
+					"type": "__REF__48"
+				},
+				{
+					"name": "of",
+					"type": "__REF__50"
+				},
+				{
+					"name": "__@species@298",
+					"type": "__REF__52",
+					"modifiers": ["READONLY"]
+				}
+			],
+			"call": "__REF__53"
+		},
+		"53": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__54",
+			"parameters": [
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__54",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"54": {
+			"kind": "ARRAY",
+			"type": "__REF__55",
+			"name": "Array"
+		},
+		"55": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"56": {
+			"kind": "UNION",
+			"types": ["__REF__57", "__REF__10"]
+		},
+		"57": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__58"
+		},
+		"58": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "a",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "b",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"59": {
+			"kind": "METHOD",
+			"returnType": "__REF__30",
+			"parameters": [
+				{
+					"name": "start",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "deleteCount",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"60": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "items",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"61": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "searchElement",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "fromIndex",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"62": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "searchElement",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "fromIndex",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"63": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "predicate",
+					"optional": false,
+					"type": "__REF__64",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__67"],
+			"typePredicate": {
+				"type": "__REF__68"
+			}
+		},
+		"64": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__65"
+		},
+		"65": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__66",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typePredicate": {
+				"parameterName": "value",
+				"parameterIndex": 0,
+				"type": "__REF__67"
+			}
+		},
+		"66": {
+			"kind": "TUPLE",
+			"rest": true,
+			"members": [
+				{
+					"optional": false,
+					"type": "__REF__28",
+					"index": 0
+				},
+				{
+					"optional": true,
+					"type": "__REF__28",
+					"index": 1
+				}
+			]
+		},
+		"67": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "S"
+		},
+		"68": {
+			"kind": "TUPLE",
+			"rest": true,
+			"members": [
+				{
+					"optional": false,
+					"type": "__REF__67",
+					"index": 0
+				},
+				{
+					"optional": true,
+					"type": "__REF__67",
+					"index": 1
+				}
+			]
+		},
+		"69": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "predicate",
+					"optional": false,
+					"type": "__REF__70",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"70": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__71"
+		},
+		"71": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__72",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"72": {
+			"kind": "UNKNOWN"
+		},
+		"73": {
+			"kind": "METHOD",
+			"returnType": "__REF__74",
+			"parameters": [
+				{
+					"name": "callbackfn",
+					"optional": false,
+					"type": "__REF__75",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"74": {
+			"kind": "VOID"
+		},
+		"75": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__76"
+		},
+		"76": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__74",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"77": {
+			"kind": "METHOD",
+			"returnType": "__REF__78",
+			"parameters": [
+				{
+					"name": "callbackfn",
+					"optional": false,
+					"type": "__REF__80",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__79"]
+		},
+		"78": {
+			"kind": "TUPLE",
+			"rest": true,
+			"members": [
+				{
+					"optional": false,
+					"type": "__REF__79",
+					"index": 0
+				},
+				{
+					"optional": true,
+					"type": "__REF__79",
+					"index": 1
+				}
+			]
+		},
+		"79": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "U"
+		},
+		"80": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__81"
+		},
+		"81": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__79",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__66",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"82": {
+			"kind": "METHOD",
+			"returnType": "__REF__30",
+			"parameters": [
+				{
+					"name": "predicate",
+					"optional": false,
+					"type": "__REF__83",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"83": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__84"
+		},
+		"84": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__72",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"85": {
+			"kind": "METHOD",
+			"returnType": "__REF__86",
+			"parameters": [
+				{
+					"name": "callbackfn",
+					"optional": false,
+					"type": "__REF__87",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "initialValue",
+					"optional": false,
+					"type": "__REF__86",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__86"]
+		},
+		"86": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "U"
+		},
+		"87": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__88"
+		},
+		"88": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__86",
+			"parameters": [
+				{
+					"name": "previousValue",
+					"optional": false,
+					"type": "__REF__86",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "currentValue",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "currentIndex",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"89": {
+			"kind": "METHOD",
+			"returnType": "__REF__90",
+			"parameters": [
+				{
+					"name": "callbackfn",
+					"optional": false,
+					"type": "__REF__91",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "initialValue",
+					"optional": false,
+					"type": "__REF__90",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__90"]
+		},
+		"90": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "U"
+		},
+		"91": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__92"
+		},
+		"92": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__90",
+			"parameters": [
+				{
+					"name": "previousValue",
+					"optional": false,
+					"type": "__REF__90",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "currentValue",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "currentIndex",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"93": {
+			"kind": "METHOD",
+			"returnType": "__REF__27",
+			"parameters": [
+				{
+					"name": "predicate",
+					"optional": false,
+					"type": "__REF__94",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"94": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__95"
+		},
+		"95": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__72",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "obj",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"96": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "predicate",
+					"optional": false,
+					"type": "__REF__97",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"97": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__98"
+		},
+		"98": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__72",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "obj",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"99": {
+			"kind": "METHOD",
+			"returnType": "__REF__40",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "start",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "end",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"100": {
+			"kind": "METHOD",
+			"returnType": "__REF__40",
+			"parameters": [
+				{
+					"name": "target",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "start",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "end",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"101": {
+			"kind": "METHOD",
+			"returnType": "__REF__102",
+			"parameters": []
+		},
+		"102": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__103",
+			"instantiated": "__REF__136",
+			"typeArguments": ["__REF__143"]
+		},
+		"103": {
+			"kind": "INTERFACE",
+			"name": "IterableIterator",
+			"typeParameters": ["__REF__104"],
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__105"
+				},
+				{
+					"name": "next",
+					"type": "__REF__106"
+				},
+				{
+					"name": "return",
+					"type": "__REF__131",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__134",
+					"optional": true
+				}
+			]
+		},
+		"104": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"105": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"106": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"107": {
+			"kind": "ALIAS",
+			"name": "IteratorResult",
+			"target": "__REF__108",
+			"typeParameters": ["__REF__122", "__REF__123"]
+		},
+		"108": {
+			"kind": "UNION",
+			"types": ["__REF__109", "__REF__116"],
+			"discriminantMembers": [
+				{
+					"name": "done",
+					"type": "__REF__17",
+					"optional": true
+				}
+			]
+		},
+		"109": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__110",
+			"instantiated": "__REF__114",
+			"typeArguments": ["__REF__115"]
+		},
+		"110": {
+			"kind": "INTERFACE",
+			"name": "IteratorYieldResult",
+			"typeParameters": ["__REF__111"],
+			"members": [
+				{
+					"name": "done",
+					"type": "__REF__112",
+					"optional": true
+				},
+				{
+					"name": "value",
+					"type": "__REF__111"
+				}
+			]
+		},
+		"111": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "TYield"
+		},
+		"112": {
+			"kind": "UNION",
+			"types": ["__REF__113", "__REF__10"]
+		},
+		"113": {
+			"kind": "BOOLEAN_LITERAL",
+			"value": false
+		},
+		"114": {
+			"kind": "OBJECT",
+			"name": "IteratorYieldResult",
+			"members": [
+				{
+					"name": "done",
+					"type": "__REF__112",
+					"optional": true
+				},
+				{
+					"name": "value",
+					"type": "__REF__115"
+				}
+			]
+		},
+		"115": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"116": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__117",
+			"instantiated": "__REF__120",
+			"typeArguments": ["__REF__121"]
+		},
+		"117": {
+			"kind": "INTERFACE",
+			"name": "IteratorReturnResult",
+			"typeParameters": ["__REF__118"],
+			"members": [
+				{
+					"name": "done",
+					"type": "__REF__119"
+				},
+				{
+					"name": "value",
+					"type": "__REF__118"
+				}
+			]
+		},
+		"118": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "TReturn"
+		},
+		"119": {
+			"kind": "BOOLEAN_LITERAL",
+			"value": true
+		},
+		"120": {
+			"kind": "OBJECT",
+			"name": "IteratorReturnResult",
+			"members": [
+				{
+					"name": "done",
+					"type": "__REF__119"
+				},
+				{
+					"name": "value",
+					"type": "__REF__121"
+				}
+			]
+		},
+		"121": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "TReturn",
+			"default": "__REF__46"
+		},
+		"122": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"123": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "TReturn",
+			"default": "__REF__46"
+		},
+		"124": {
+			"kind": "UNION",
+			"types": ["__REF__125", "__REF__126"],
+			"discriminantMembers": [
+				{
+					"name": "length",
+					"type": "__REF__128"
+				}
+			]
+		},
+		"125": {
+			"kind": "TUPLE",
+			"rest": false,
+			"members": []
+		},
+		"126": {
+			"kind": "TUPLE",
+			"rest": false,
+			"members": [
+				{
+					"optional": false,
+					"type": "__REF__127",
+					"index": 0
+				}
+			]
+		},
+		"127": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "TNext",
+			"default": "__REF__10"
+		},
+		"128": {
+			"kind": "UNION",
+			"types": ["__REF__129", "__REF__130"]
+		},
+		"129": {
+			"kind": "NUMBER_LITERAL",
+			"value": 0
+		},
+		"130": {
+			"kind": "NUMBER_LITERAL",
+			"value": 1
+		},
+		"131": {
+			"kind": "UNION",
+			"types": ["__REF__132", "__REF__10"]
+		},
+		"132": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"133": {
+			"kind": "UNION",
+			"types": ["__REF__121", "__REF__10"]
+		},
+		"134": {
+			"kind": "UNION",
+			"types": ["__REF__135", "__REF__10"]
+		},
+		"135": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"136": {
+			"kind": "OBJECT",
+			"name": "IterableIterator",
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__137"
+				},
+				{
+					"name": "next",
+					"type": "__REF__138"
+				},
+				{
+					"name": "return",
+					"type": "__REF__139",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__141",
+					"optional": true
+				}
+			]
+		},
+		"137": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"138": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"139": {
+			"kind": "UNION",
+			"types": ["__REF__140", "__REF__10"]
+		},
+		"140": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"141": {
+			"kind": "UNION",
+			"types": ["__REF__142", "__REF__10"]
+		},
+		"142": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"143": {
+			"kind": "TUPLE",
+			"rest": false,
+			"members": [
+				{
+					"optional": false,
+					"type": "__REF__4",
+					"index": 0
+				},
+				{
+					"optional": false,
+					"type": "__REF__28",
+					"index": 1
+				}
+			]
+		},
+		"144": {
+			"kind": "METHOD",
+			"returnType": "__REF__145",
+			"parameters": []
+		},
+		"145": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__103",
+			"instantiated": "__REF__146",
+			"typeArguments": ["__REF__4"]
+		},
+		"146": {
+			"kind": "OBJECT",
+			"name": "IterableIterator",
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__147"
+				},
+				{
+					"name": "next",
+					"type": "__REF__148"
+				},
+				{
+					"name": "return",
+					"type": "__REF__149",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__151",
+					"optional": true
+				}
+			]
+		},
+		"147": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"148": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"149": {
+			"kind": "UNION",
+			"types": ["__REF__150", "__REF__10"]
+		},
+		"150": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"151": {
+			"kind": "UNION",
+			"types": ["__REF__152", "__REF__10"]
+		},
+		"152": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"153": {
+			"kind": "METHOD",
+			"returnType": "__REF__154",
+			"parameters": []
+		},
+		"154": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__103",
+			"instantiated": "__REF__155",
+			"typeArguments": ["__REF__28"]
+		},
+		"155": {
+			"kind": "OBJECT",
+			"name": "IterableIterator",
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__156"
+				},
+				{
+					"name": "next",
+					"type": "__REF__157"
+				},
+				{
+					"name": "return",
+					"type": "__REF__158",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__160",
+					"optional": true
+				}
+			]
+		},
+		"156": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"157": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"158": {
+			"kind": "UNION",
+			"types": ["__REF__159", "__REF__10"]
+		},
+		"159": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"160": {
+			"kind": "UNION",
+			"types": ["__REF__161", "__REF__10"]
+		},
+		"161": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"162": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "searchElement",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "fromIndex",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"163": {
+			"kind": "METHOD",
+			"returnType": "__REF__164",
+			"parameters": [
+				{
+					"name": "callback",
+					"optional": false,
+					"type": "__REF__166",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "thisArg",
+					"optional": true,
+					"type": "__REF__171",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__165", "__REF__170"]
+		},
+		"164": {
+			"kind": "ARRAY",
+			"type": "__REF__165",
+			"name": "Array"
+		},
+		"165": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "U"
+		},
+		"166": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__167"
+		},
+		"167": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__168",
+			"parameters": [
+				{
+					"name": "this",
+					"optional": false,
+					"type": "__REF__170",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "value",
+					"optional": false,
+					"type": "__REF__28",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "array",
+					"optional": false,
+					"type": "__REF__30",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"168": {
+			"kind": "UNION",
+			"types": ["__REF__165", "__REF__169"]
+		},
+		"169": {
+			"kind": "ARRAY",
+			"type": "__REF__165",
+			"name": "ReadonlyArray"
+		},
+		"170": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "This",
+			"default": "__REF__10"
+		},
+		"171": {
+			"kind": "UNION",
+			"types": ["__REF__170", "__REF__10"]
+		},
+		"172": {
+			"kind": "METHOD",
+			"returnType": "__REF__173",
+			"parameters": [
+				{
+					"name": "this",
+					"optional": false,
+					"type": "__REF__178",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "depth",
+					"optional": true,
+					"type": "__REF__179",
+					"rest": false,
+					"initializer": false
+				}
+			],
+			"typeParameters": ["__REF__178", "__REF__180"]
+		},
+		"173": {
+			"kind": "ARRAY",
+			"type": "__REF__174",
+			"name": "Array"
+		},
+		"174": {
+			"kind": "ALIAS",
+			"name": "FlatArray",
+			"target": "__REF__175",
+			"typeParameters": ["__REF__176", "__REF__177"]
+		},
+		"175": {
+			"kind": "ANY",
+			"error": "Not understood by ts-simple-type"
+		},
+		"176": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "Arr"
+		},
+		"177": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "Depth",
+			"constraint": "__REF__4"
+		},
+		"178": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "A"
+		},
+		"179": {
+			"kind": "UNION",
+			"types": ["__REF__180", "__REF__10"]
+		},
+		"180": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "D",
+			"default": "__REF__130",
+			"constraint": "__REF__4"
+		},
+		"181": {
+			"kind": "METHOD",
+			"returnType": "__REF__154",
+			"parameters": []
+		},
+		"182": {
+			"kind": "METHOD",
+			"returnType": "__REF__183",
+			"parameters": []
+		},
+		"183": {
+			"kind": "OBJECT",
+			"members": [
+				{
+					"name": "copyWithin",
+					"type": "__REF__45"
+				},
+				{
+					"name": "entries",
+					"type": "__REF__45"
+				},
+				{
+					"name": "fill",
+					"type": "__REF__45"
+				},
+				{
+					"name": "find",
+					"type": "__REF__45"
+				},
+				{
+					"name": "findIndex",
+					"type": "__REF__45"
+				},
+				{
+					"name": "keys",
+					"type": "__REF__45"
+				},
+				{
+					"name": "values",
+					"type": "__REF__45"
+				}
+			]
+		},
+		"184": {
+			"kind": "METHOD",
+			"returnType": "__REF__185",
+			"parameters": [
+				{
+					"name": "index",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"185": {
+			"kind": "UNION",
+			"types": ["__REF__186", "__REF__10"]
+		},
+		"186": {
+			"kind": "GENERIC_PARAMETER",
+			"name": "T"
+		},
+		"187": {
+			"kind": "NULL"
+		},
+		"188": {
+			"kind": "OBJECT",
+			"members": [
+				{
+					"name": "__@match@780",
+					"type": "__REF__189"
+				}
+			]
+		},
+		"189": {
+			"kind": "METHOD",
+			"returnType": "__REF__20",
+			"parameters": [
+				{
+					"name": "string",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"190": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "searchValue",
+					"optional": false,
+					"type": "__REF__191",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "replacer",
+					"optional": false,
+					"type": "__REF__195",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"191": {
+			"kind": "OBJECT",
+			"members": [
+				{
+					"name": "__@replace@782",
+					"type": "__REF__192"
+				}
+			]
+		},
+		"192": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "string",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "replacer",
+					"optional": false,
+					"type": "__REF__193",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"193": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__194"
+		},
+		"194": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "substring",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__47",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"195": {
+			"kind": "OBJECT",
+			"members": [],
+			"call": "__REF__196"
+		},
+		"196": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "substring",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__47",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"197": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "searcher",
+					"optional": false,
+					"type": "__REF__198",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"198": {
+			"kind": "OBJECT",
+			"members": [
+				{
+					"name": "__@search@785",
+					"type": "__REF__199"
+				}
+			]
+		},
+		"199": {
+			"kind": "METHOD",
+			"returnType": "__REF__4",
+			"parameters": [
+				{
+					"name": "string",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"200": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "start",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "end",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"201": {
+			"kind": "METHOD",
+			"returnType": "__REF__7",
+			"parameters": [
+				{
+					"name": "splitter",
+					"optional": false,
+					"type": "__REF__202",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "limit",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"202": {
+			"kind": "OBJECT",
+			"members": [
+				{
+					"name": "__@split@751",
+					"type": "__REF__203"
+				}
+			]
+		},
+		"203": {
+			"kind": "METHOD",
+			"returnType": "__REF__7",
+			"parameters": [
+				{
+					"name": "string",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "limit",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"204": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "start",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "end",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"205": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"206": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "locales",
+					"optional": true,
+					"type": "__REF__13",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"207": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"208": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "locales",
+					"optional": true,
+					"type": "__REF__13",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"209": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"210": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "from",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "length",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"211": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"212": {
+			"kind": "METHOD",
+			"returnType": "__REF__9",
+			"parameters": [
+				{
+					"name": "pos",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"213": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "searchString",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "position",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"214": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "searchString",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "endPosition",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"215": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "form",
+					"optional": true,
+					"type": "__REF__16",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"216": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "count",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"217": {
+			"kind": "METHOD",
+			"returnType": "__REF__45",
+			"parameters": [
+				{
+					"name": "searchString",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "position",
+					"optional": true,
+					"type": "__REF__9",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"218": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "name",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"219": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"220": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"221": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"222": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"223": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "color",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"224": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "size",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"225": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"226": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "url",
+					"optional": false,
+					"type": "__REF__2",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"227": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"228": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"229": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"230": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"231": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "maxLength",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "fillString",
+					"optional": true,
+					"type": "__REF__16",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"232": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": [
+				{
+					"name": "maxLength",
+					"optional": false,
+					"type": "__REF__4",
+					"rest": false,
+					"initializer": false
+				},
+				{
+					"name": "fillString",
+					"optional": true,
+					"type": "__REF__16",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"233": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"234": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"235": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"236": {
+			"kind": "METHOD",
+			"returnType": "__REF__2",
+			"parameters": []
+		},
+		"237": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__103",
+			"instantiated": "__REF__238",
+			"typeArguments": ["__REF__21"]
+		},
+		"238": {
+			"kind": "OBJECT",
+			"name": "IterableIterator",
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__239"
+				},
+				{
+					"name": "next",
+					"type": "__REF__240"
+				},
+				{
+					"name": "return",
+					"type": "__REF__241",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__243",
+					"optional": true
+				}
+			]
+		},
+		"239": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"240": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"241": {
+			"kind": "UNION",
+			"types": ["__REF__242", "__REF__10"]
+		},
+		"242": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"243": {
+			"kind": "UNION",
+			"types": ["__REF__244", "__REF__10"]
+		},
+		"244": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"245": {
+			"kind": "GENERIC_ARGUMENTS",
+			"target": "__REF__103",
+			"instantiated": "__REF__246",
+			"typeArguments": ["__REF__2"]
+		},
+		"246": {
+			"kind": "OBJECT",
+			"name": "IterableIterator",
+			"members": [
+				{
+					"name": "__@iterator@19",
+					"type": "__REF__247"
+				},
+				{
+					"name": "next",
+					"type": "__REF__248"
+				},
+				{
+					"name": "return",
+					"type": "__REF__249",
+					"optional": true
+				},
+				{
+					"name": "throw",
+					"type": "__REF__251",
+					"optional": true
+				}
+			]
+		},
+		"247": {
+			"kind": "METHOD",
+			"returnType": "__REF__103",
+			"parameters": []
+		},
+		"248": {
+			"kind": "METHOD",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "args",
+					"optional": false,
+					"type": "__REF__124",
+					"rest": true,
+					"initializer": false
+				}
+			]
+		},
+		"249": {
+			"kind": "UNION",
+			"types": ["__REF__250", "__REF__10"]
+		},
+		"250": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "value",
+					"optional": true,
+					"type": "__REF__133",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		},
+		"251": {
+			"kind": "UNION",
+			"types": ["__REF__252", "__REF__10"]
+		},
+		"252": {
+			"kind": "FUNCTION",
+			"returnType": "__REF__107",
+			"parameters": [
+				{
+					"name": "e",
+					"optional": true,
+					"type": "__REF__46",
+					"rest": false,
+					"initializer": false
+				}
+			]
+		}
+	}
+}

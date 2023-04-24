@@ -1,0 +1,818 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`README example: Typescript to C 1`] = `
+"typedef struct {
+  char* name;
+  Location* workplace;
+} TypeA;
+
+typedef struct {
+  int64_t id;
+  char* title;
+  char* description;
+  double lat;
+  double lng;
+} Location;"
+`;
+
+exports[`Show input Typescript used in tests 1`] = `
+"
+type DBTable = 
+	| 'block'
+	| 'collection'
+	| 'space'
+
+type RecordPointer<T extends DBTable = DBTable> = T extends 'space' ?
+	{ table: T; id: string } :
+	{ table: T; id: string; spaceId: string }
+
+// Forcing an anonymous type for testing purpose.
+type TableModal<T extends DBTable = DBTable> = T extends 'space'
+	? { open: false }
+	: ({ open: true, view: string } | { open: false })
+
+enum AnnotationType {
+	Bold,
+	Italic,
+	Underline,
+	Strike,
+	Code
+}
+
+/** Blocks allowed in a document. */
+export type DocumentBlock = Text | Table | Document
+
+export interface Table {
+  header: string[]
+  rows: string[][]
+	parent: RecordPointer<'block'>
+	/** @deprecated */
+	modal: TableModal<'block'>
+	rect?: Rect
+}
+
+export interface Text {
+  plain: string
+  annotations: Annotation[]
+	rect?: Rect
+	toString(): string
+}
+
+export interface Annotation {
+  type: AnnotationType
+  start: number
+  end: number
+  unknownData: unknown
+  anyData: any
+}
+
+type Position = {
+	x: number,
+	y: number
+	move(dx: number, dy: number): Position
+}
+
+type Dimension = {
+	width: number,
+	height: number
+	resize(width: number, height: number): Dimension
+}
+
+type Rect = Position & Dimension
+
+/** A persisted document in our database */
+export interface Document {
+	parent: RecordPointer
+	/** Title of the document */
+  title: string
+	/** Author's email */
+  author: string
+  body: Array<DocumentBlock>
+}
+"
+`;
+
+exports[`compile-to/json-schema: Compile test.ts to JSONSchema 1`] = `
+"{
+  "title": "Document",
+  "description": "A persisted document in our database",
+  "type": "object",
+  "properties": {
+    "parent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "table": {
+              "const": "space",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "table",
+            "id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "table": {
+              "const": "block",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "spaceId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "table",
+            "id",
+            "spaceId"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "table": {
+              "const": "collection",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "spaceId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "table",
+            "id",
+            "spaceId"
+          ]
+        }
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "body": {
+      "title": "Array",
+      "type": "array",
+      "items": {
+        "ref": "/schemas/DocumentBlock"
+      }
+    }
+  },
+  "required": [
+    "parent",
+    "title",
+    "author",
+    "body"
+  ],
+  "$defs": {
+    "DocumentBlock": {
+      "title": "DocumentBlock",
+      "$id": "DocumentBlock",
+      "description": "Blocks allowed in a document.",
+      "anyOf": [
+        {
+          "ref": "/"
+        },
+        {
+          "ref": "/schemas/Text"
+        },
+        {
+          "ref": "/schemas/Table"
+        }
+      ]
+    },
+    "Text": {
+      "title": "Text",
+      "$id": "Text",
+      "type": "object",
+      "properties": {
+        "plain": {
+          "type": "string"
+        },
+        "annotations": {
+          "title": "Array",
+          "type": "array",
+          "items": {
+            "ref": "/schemas/Annotation"
+          }
+        },
+        "rect": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "width",
+                "height"
+              ]
+            },
+            {
+              "type": "object",
+              "specialized": "Undefined"
+            }
+          ]
+        }
+      },
+      "required": [
+        "plain",
+        "annotations"
+      ]
+    },
+    "Annotation": {
+      "title": "Annotation",
+      "$id": "Annotation",
+      "type": "object",
+      "properties": {
+        "type": {
+          "title": "AnnotationType",
+          "anyOf": [
+            {
+              "type": "number",
+              "const": 0
+            },
+            {
+              "type": "number",
+              "const": 1
+            },
+            {
+              "type": "number",
+              "const": 2
+            },
+            {
+              "type": "number",
+              "const": 3
+            },
+            {
+              "type": "number",
+              "const": 4
+            }
+          ]
+        },
+        "start": {
+          "type": "number"
+        },
+        "end": {
+          "type": "number"
+        },
+        "unknownData": {},
+        "anyData": {}
+      },
+      "required": [
+        "type",
+        "start",
+        "end",
+        "unknownData",
+        "anyData"
+      ]
+    },
+    "Table": {
+      "title": "Table",
+      "$id": "Table",
+      "type": "object",
+      "properties": {
+        "header": {
+          "title": "Array",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rows": {
+          "title": "Array",
+          "type": "array",
+          "items": {
+            "title": "Array",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "parent": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "const": "block",
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "spaceId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "table",
+            "id",
+            "spaceId"
+          ]
+        },
+        "modal": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "view": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "open",
+                "view"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "open": {
+                  "const": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "open"
+              ]
+            }
+          ]
+        },
+        "rect": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "width",
+                "height"
+              ]
+            },
+            {
+              "type": "object",
+              "specialized": "Undefined"
+            }
+          ]
+        }
+      },
+      "required": [
+        "header",
+        "rows",
+        "parent",
+        "modal"
+      ]
+    }
+  }
+}
+"
+`;
+
+exports[`compile-to/json-schema: Compile test.ts to JSONSchema 2`] = `
+{
+  "file": "json-schema/schema.json",
+  "mappings": "",
+  "names": [],
+  "sources": [],
+  "sourcesContent": undefined,
+  "version": 3,
+}
+`;
+
+exports[`compile-to/json-schema: Compile test.ts to JSONSchema 3`] = `1`;
+
+exports[`compile-to/proto3: Compile test.ts to Proto3 1`] = `
+"syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+/**
+ * A persisted document in our database
+ */
+message Document {
+  oneOf parent {
+    DocumentParentSpaceTable documentParentSpaceTable = 101; /* TODO: sound oneOf field number assignment */
+    DocumentParentBlockTable documentParentBlockTable = 102; /* TODO: sound oneOf field number assignment */
+    DocumentParentCollectionTable documentParentCollectionTable = 103; /* TODO: sound oneOf field number assignment */
+  };
+  /**
+   * Title of the document
+   */
+  string title = 2;
+  /**
+   * Author's email
+   */
+  string author = 3;
+  repeated DocumentBlock body = 4;
+}
+
+message DocumentParentSpaceTable {
+  /** always "space" */ string table = 1 /* proto2 only: [default = "space"] */;
+  string id = 2;
+}
+
+message DocumentParentBlockTable {
+  /** always "block" */ string table = 1 /* proto2 only: [default = "block"] */;
+  string id = 2;
+  string spaceId = 3;
+}
+
+message DocumentParentCollectionTable {
+  /** always "collection" */ string table = 1 /* proto2 only: [default = "collection"] */;
+  string id = 2;
+  string spaceId = 3;
+}
+
+/**
+ * Blocks allowed in a document.
+ */
+message DocumentBlock {
+  oneOf t {
+    Document document = 1; /* TODO: sound oneOf field number assignment */
+    Text text = 2; /* TODO: sound oneOf field number assignment */
+    Table table = 3; /* TODO: sound oneOf field number assignment */
+  };
+}
+
+message Text {
+  string plain = 1;
+  repeated Annotation annotations = 2;
+  optional Rect rect = 3;
+}
+
+message Annotation {
+  AnnotationType type = 1;
+  double start = 2;
+  double end = 3;
+  google.protobuf.Any unknownData = 4;
+  google.protobuf.Any anyData = 5;
+}
+
+enum AnnotationType {
+  Bold = 0;
+  Italic = 1;
+  Underline = 2;
+  Strike = 3;
+  Code = 4;
+}
+
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 4;
+  double height = 5;
+}
+
+message Table {
+  repeated string header = 1;
+  repeated ArrayOfString rows = 2;
+  DocumentParentBlockTable parent = 3;
+  /**
+   * @deprecated
+   */
+  oneOf modal {
+    TableModalOpenTrue tableModalOpenTrue = 101; /* TODO: sound oneOf field number assignment */
+    TableModalOpenFalse tableModalOpenFalse = 102; /* TODO: sound oneOf field number assignment */
+  };
+  optional Rect rect = 5;
+}
+
+message ArrayOfString {
+  repeated string t = 1;
+}
+
+message TableModalOpenTrue {
+  /** always true */ bool open = 1 /* proto2 only: [default = true] */;
+  string view = 2;
+}
+
+message TableModalOpenFalse {
+  /** always false */ bool open = 1 /* proto2 only: [default = false] */;
+}
+
+"
+`;
+
+exports[`compile-to/proto3: Compile test.ts to Proto3 2`] = `
+{
+  "file": "proto/schema.proto",
+  "mappings": ";;;;AAgEA;AAAA;AAAA;AAAA;;;;;IAAA;;;;mBAAA;;;;oBAAA;ACktCA,W,aAAA,UDltCA;AAAA,C;;AA1DC;gFAAA;gBAAA;AAAA,C;;AACA;gFAAA;gBAAA;qBAAA;AAAA,C;;AAAA;0FAAA;gBAAA;qBAAA;AAAA,C;;AAgBD;AAAA;AAAA;AAAA;AAAA;AAAA,I,QAAA;AAAA,I,IAAA;AAAA,I,KAAA;AAAA;AAAA,C;;AAWA;mBAAA;ACgvCA,W,UAAA,iBDhvCA;yBAAA;AAAA,C;;AAOA;AA3BA,E,cAAA,UA2BA;mBAAA;iBAAA;sCAAA;kCAAA;AAAA,C;;AA3BA;AACC,WADD;AAEC,aAFD;AAGC,gBAHD;AAIC,aAJD;AAKC,WALD;AAAA,C;;AA+CA;eAAA;eAAA;mBAAA;oBAAA;AAAA,C;;AApCA;ACyvCA,W,MAAA,YDzvCA;ACyvCA,W,aAAA,UDzvCA;AAlBC,E,wBAAA,YAkBD;;;;;;;IAAA;yBAAA;AAAA,C;;ACyvCA;AAAA,W,MAAA;AAAA,C;;ADtwCI;uEAAA;kBAAA;AAAA,C;;AAA+B;yEAAA;AAAA,C",
+  "names": [],
+  "sources": [
+    "source 0",
+    "source 1",
+  ],
+  "sourcesContent": [
+    "source 0: length 1364",
+    "source 1: length undefined",
+  ],
+  "version": 3,
+}
+`;
+
+exports[`compile-to/proto3: Compile test.ts to Proto3 3`] = `1`;
+
+exports[`compile-to/python3: compile test.ts to Python with custom declaration routing 1`] = `
+"import dataclasses
+import typing
+import editor.generated
+import enum
+
+@dataclasses.dataclass
+class Document:
+    parent: typing.Union[editor.generated.DocumentParentSpaceTable, editor.generated.DocumentParentBlockTable, editor.generated.DocumentParentCollectionTable]
+    title: str
+    author: str
+    body: list[DocumentBlock]
+
+DocumentBlock = typing.Union[Document, Text, Table]
+
+@dataclasses.dataclass
+class Text:
+    plain: str
+    annotations: list[Annotation]
+    rect: typing.Optional[editor.generated.Rect]
+    toString: Callable[[], str]
+
+@dataclasses.dataclass
+class Annotation:
+    type: AnnotationType
+    start: float
+    end: float
+    unknownData: object
+    anyData: typing.Any
+
+class AnnotationType(enum.Enum):
+    Bold = 0
+    Italic = 1
+    Underline = 2
+    Strike = 3
+    Code = 4
+
+@dataclasses.dataclass
+class Table:
+    header: list[str]
+    rows: list[list[str]]
+    parent: editor.generated.DocumentParentBlockTable
+    modal: typing.Union[editor.generated.TableModalOpenTrue, editor.generated.TableModalOpenFalse]
+    rect: typing.Optional[editor.generated.Rect]"
+`;
+
+exports[`compile-to/python3: compile test.ts to Python with custom declaration routing 2`] = `
+{
+  "file": "editor/document.py",
+  "mappings": ";;;;;AAgEA,C,qBAAA;AAAA;8JAAA;cAAA;eAAA;ACktCA,e,aAAA,C;;AD3vCA,gB,YAAA,C,QAAA,E,IAAA,E,KAAA,C;;AAWA,C,qBAAA;AAAA;cAAA;ACgvCA,sB,UAAA,CDhvCA;gDAAA;AAIC,2B,GAAA,C;;AAGD,C,qBAAA;AAAA;AA3BA,U,cA2BA;gBAAA;cAAA;uBAAA;;;AA3BA,qB,SAAA;AACC,YADD;AAEC,cAFD;AAGC,iBAHD;AAIC,cAJD;AAKC,Y;;AAMD,C,qBAAA;AAAA;ACyvCA,iB,GAAA,CDzvCA;ACyvCA,oB,GAAA,EDzvCA;AAlBC,Y,yCAkBD;kGAAA",
+  "names": [],
+  "sources": [
+    "source 0",
+    "source 1",
+  ],
+  "sourcesContent": [
+    "source 0: length 1364",
+    "source 1: length undefined",
+  ],
+  "version": 3,
+}
+`;
+
+exports[`compile-to/python3: compile test.ts to Python with custom declaration routing 3`] = `
+"import dataclasses
+
+@dataclasses.dataclass
+class DocumentParentSpaceTable:
+    table: Literal["space"]
+    id: str
+
+@dataclasses.dataclass
+class DocumentParentBlockTable:
+    table: Literal["block"]
+    id: str
+    spaceId: str
+
+@dataclasses.dataclass
+class DocumentParentCollectionTable:
+    table: Literal["collection"]
+    id: str
+    spaceId: str
+
+@dataclasses.dataclass
+class Rect:
+    x: float
+    y: float
+    move: Callable[[float, float], Position]
+    width: float
+    height: float
+    resize: Callable[[float, float], Dimension]
+
+@dataclasses.dataclass
+class Position:
+    x: float
+    y: float
+    move: Callable[[float, float], Position]
+
+@dataclasses.dataclass
+class Dimension:
+    width: float
+    height: float
+    resize: Callable[[float, float], Dimension]
+
+@dataclasses.dataclass
+class TableModalOpenTrue:
+    open: True
+    view: str
+
+@dataclasses.dataclass
+class TableModalOpenFalse:
+    open: False"
+`;
+
+exports[`compile-to/python3: compile test.ts to Python with custom declaration routing 4`] = `
+{
+  "file": "editor/generated.py",
+  "mappings": ";;AAMC,C,qBAAA;AAAA;2BAAA;;;AACA,C,qBAAA;AAAA;2BAAA;WAAA;;;AAAA,C,qBAAA;AAAA;gCAAA;WAAA;;;AAsDD,C,qBAAA;AAAA;YAAA;YAAA;AATC,oB,KAAA,E,KAAA,G,QAAA,CASD;gBAAA;iBAAA;AAHC,sB,KAAA,E,KAAA,G,SAAA,C;;AATD,C,qBAAA;AAAA;YAAA;YAAA;AAGC,oB,KAAA,E,KAAA,G,QAAA,C;;AAGD,C,qBAAA;AAAA;gBAAA;iBAAA;AAGC,sB,KAAA,E,KAAA,G,SAAA,C;;AA9CG,C,qBAAA;AAAA;cAAA;;;AAA+B,C,qBAAA;AAAA",
+  "names": [],
+  "sources": [
+    "source 0",
+  ],
+  "sourcesContent": [
+    "source 0: length 1364",
+  ],
+  "version": 3,
+}
+`;
+
+exports[`compile-to/python3: compile test.ts to Python with custom declaration routing 5`] = `2`;
+
+exports[`compile-to/thrift: Compile test.ts to thrift 1`] = `
+"# No includes
+
+namespace * schema
+
+/**
+ * A persisted document in our database
+ */
+struct Document {
+  0: DocumentParent parent,
+  /**
+   * Title of the document
+   */
+  1: string title,
+  /**
+   * Author's email
+   */
+  2: string author,
+  3: list<DocumentBlock> body
+}
+
+union DocumentParent {
+  0: DocumentParentSpaceTable DocumentParentSpaceTable,
+  1: DocumentParentBlockTable DocumentParentBlockTable,
+  2: DocumentParentCollectionTable DocumentParentCollectionTable
+}
+
+struct DocumentParentSpaceTable {
+  0: /** always "space" */ string table = "space",
+  1: string id
+}
+
+struct DocumentParentBlockTable {
+  0: /** always "block" */ string table = "block",
+  1: string id,
+  2: string spaceId
+}
+
+struct DocumentParentCollectionTable {
+  0: /** always "collection" */ string table = "collection",
+  1: string id,
+  2: string spaceId
+}
+
+/**
+ * Blocks allowed in a document.
+ */
+union DocumentBlock {
+  0: Document Document,
+  1: Text Text,
+  2: Table Table
+}
+
+struct Text {
+  0: string plain,
+  1: list<Annotation> annotations,
+  2: optional Rect rect
+}
+
+struct Annotation {
+  0: AnnotationType type,
+  1: double start,
+  2: double end,
+  3: /** Typescript: unknown */ void unknownData,
+  4: /** Typescript: any */ void anyData
+}
+
+enum AnnotationType {
+  Bold = 0,
+  Italic = 1,
+  Underline = 2,
+  Strike = 3,
+  Code = 4
+}
+
+struct Rect {
+  0: double x,
+  1: double y,
+  3: double width,
+  4: double height
+}
+
+struct Table {
+  0: list<string> header,
+  1: list<list<string>> rows,
+  2: DocumentParentBlockTable parent,
+  /**
+   * @deprecated
+   */
+  3: TableModal modal,
+  4: optional Rect rect
+}
+
+union TableModal {
+  0: TableModalOpenTrue TableModalOpenTrue,
+  1: TableModalOpenFalse TableModalOpenFalse
+}
+
+struct TableModalOpenTrue {
+  0: /** always true */ bool open = true,
+  1: string view
+}
+
+struct TableModalOpenFalse {
+  0: /** always false */ bool open = false
+}
+
+"
+`;
+
+exports[`compile-to/thrift: Compile test.ts to thrift 2`] = `
+{
+  "file": "thrift/schema.thrift",
+  "mappings": ";;;;AAgEA;AAAA;AAAA;AAAA;0BAAA;;;;iBAAA;;;;kBAAA;ACktCA,U,aAAA,MDltCA;AAAA,C;;;AA1DC,K,wBAAA,yB;AACA,K,wBAAA,yB;AAAA,K,6BAAA,8B;;;AADA;iDAAA;cAAA;AAAA,C;;AACA;iDAAA;cAAA;mBAAA;AAAA,C;;AAAA;2DAAA;cAAA;mBAAA;AAAA,C;;AAgBD;AAAA;AAAA;AAAA;AAyCA,K,QAAA,SAzCA;AAWA,K,IAAA,KAXA;AAEA,K,KAAA,MAFA;AAAA,C;;AAWA;iBAAA;ACgvCA,U,UAAA,aDhvCA;uBAAA;AAAA,C;;AAOA;AA3BA,K,cAAA,KA2BA;iBAAA;eAAA;gDAAA;wCAAA;AAAA,C;;AA3BA;AACC,UADD;AAEC,YAFD;AAGC,eAHD;AAIC,YAJD;AAKC,UALD;AAAA,C;;AA+CA;aAAA;aAAA;iBAAA;kBAAA;AAAA,C;;AApCA;ACyvCA,U,MAAA,QDzvCA;ACyvCA,e,MAAA,ODzvCA;AAlBC,K,wBAAA,OAkBD;;;;qBAAA;uBAAA;AAAA,C;;;AAbI,K,kBAAA,mB;AAA+B,K,mBAAA,oB;;;AAA/B;wCAAA;gBAAA;AAAA,C;;AAA+B;0CAAA;AAAA,C",
+  "names": [],
+  "sources": [
+    "source 0",
+    "source 1",
+  ],
+  "sourcesContent": [
+    "source 0: length 1364",
+    "source 1: length undefined",
+  ],
+  "version": 3,
+}
+`;
+
+exports[`compile-to/thrift: Compile test.ts to thrift 3`] = `1`;
